@@ -18,6 +18,18 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@gev-verify/shared-types": [
+        "./packages/shared-types/src/index.ts"
+      ],
+      "@gev-verify/validation": [
+        "./packages/validation/src/index.ts"
+      ],
+      "@gev-verify/compliance-core": [
+        "./packages/compliance-core/src/index.ts"
+      ],
+      "@gev-verify/config": [
+        "./packages/config/src/index.ts"
       ]
     },
     "allowImportingTsExtensions": true,

@@ -1,7 +1,9 @@
 import pino from 'pino';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const logLevel = process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug');
+const validLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
+const rawLevel = (process.env.LOG_LEVEL || '').toLowerCase();
+const logLevel = validLevels.includes(rawLevel) ? rawLevel : (isProduction ? 'info' : 'debug');
 
 /**
  * Enterprise Structured Logger using Pino

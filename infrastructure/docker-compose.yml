@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  gev-verify-web-api:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_URL=postgresql://gev_admin:gev_secure_password@postgres:5432/gev_verify?schema=public
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - postgres
+      - ai-intelligence-service
+
+  ai-intelligence-service:
+    build:
+      context: ../services/ai-intelligence
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=gev_admin
+      - POSTGRES_PASSWORD=gev_secure_password
+      - POSTGRES_DB=gev_verify
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
