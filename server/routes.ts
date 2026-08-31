@@ -137,6 +137,26 @@ apiRouter.get('/bids/:id/cross-verification', async (req: Request, res: Response
   }
 });
 
+apiRouter.post('/bids/:id/evaluate-compliance', async (req: Request, res: Response) => {
+  try {
+    const updated = await rerunVerificationAndCompliance(req.params.id);
+    if (!updated) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json({
+      checks: updated.complianceChecks || [],
+      riskAssessment: updated.riskAssessment || null,
+      score: updated.overallScore,
+      riskLevel: updated.riskLevel,
+      passedChecks: updated.riskAssessment?.passedChecksCount || 0,
+      failedChecks: updated.riskAssessment?.failedChecksCount || 0,
+      pendingChecks: updated.riskAssessment?.pendingChecksCount || 0,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 apiRouter.post('/bids', async (req: Request, res: Response) => {
   try {
     const { tenderId, bidder, quotedAmount } = req.body;

@@ -2028,20 +2028,103 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
       {/* ========================================================================= */}
       {activeSubTab === 'compliance' && (
         <div className="space-y-6">
+          {/* Top Metric Strip for Deterministic Engine */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500">Compliance Score</div>
+              <div className="text-2xl font-black font-mono text-slate-900 mt-0.5">
+                {bid.riskAssessment?.overallScore ?? bid.overallScore ?? 0}
+                <span className="text-xs text-slate-400 font-sans font-normal ml-1">/ 100</span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1 flex items-center space-x-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span>Rule-based Weighted</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500">Calculated Risk Level</div>
+              <div className="mt-0.5">
+                <span
+                  className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                    bid.riskLevel === 'LOW'
+                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      : bid.riskLevel === 'MEDIUM'
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : bid.riskLevel === 'HIGH'
+                      ? 'bg-orange-100 text-orange-900 border border-orange-300'
+                      : 'bg-rose-100 text-rose-900 border border-rose-300'
+                  }`}
+                >
+                  {bid.riskLevel || 'EVALUATING'}
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-500 mt-1">Mathematical Matrix</div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-emerald-200 bg-emerald-50/30 p-4 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-emerald-800">Passed Checks</div>
+              <div className="text-2xl font-black font-mono text-emerald-700 mt-0.5">
+                {bid.riskAssessment?.passedChecksCount ??
+                  bid.complianceChecks?.filter((c) => c.status === 'COMPLIANT' || c.status === 'EXEMPTED').length ??
+                  0}
+              </div>
+              <div className="text-[10px] text-emerald-600 mt-1">Compliant or Exempted</div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-rose-200 bg-rose-50/30 p-4 shadow-2xs">
+              <div className="text-[10px] font-bold uppercase text-rose-800">Failed Checks</div>
+              <div className="text-2xl font-black font-mono text-rose-700 mt-0.5">
+                {bid.riskAssessment?.failedChecksCount ??
+                  bid.complianceChecks?.filter((c) => c.status === 'NON_COMPLIANT' || c.status === 'MISSING').length ??
+                  0}
+              </div>
+              <div className="text-[10px] text-rose-600 mt-1">Non-compliant / Missing</div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-amber-200 bg-amber-50/30 p-4 shadow-2xs col-span-2 md:col-span-1">
+              <div className="text-[10px] font-bold uppercase text-amber-800">Pending / Review</div>
+              <div className="text-2xl font-black font-mono text-amber-700 mt-0.5">
+                {bid.riskAssessment?.pendingChecksCount ??
+                  bid.complianceChecks?.filter((c) => c.status === 'REVIEW').length ??
+                  0}
+              </div>
+              <div className="text-[10px] text-amber-600 mt-1">Requires Clarification</div>
+            </div>
+          </div>
+
+          {/* Critical Risk Flags banner if any */}
+          {bid.riskAssessment?.criticalFlags && bid.riskAssessment.criticalFlags.length > 0 && (
+            <div className="p-4 bg-rose-50 border-l-4 border-rose-600 rounded-r-xl space-y-1 shadow-2xs">
+              <div className="flex items-center space-x-2 text-rose-900 font-bold text-xs">
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                <span>Deterministic Critical Red Flags ({bid.riskAssessment.criticalFlags.length}):</span>
+              </div>
+              <ul className="list-disc pl-5 text-xs text-rose-800 space-y-1">
+                {bid.riskAssessment.criticalFlags.map((flag, fIdx) => (
+                  <li key={fIdx} className="font-semibold">{flag}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">Deterministic Mathematical Compliance Scoring</h3>
                 <p className="text-xs text-slate-500">
                   Compliance scores are computed strictly through business logic rules in TypeScript (no probabilistic AI hallucinations).
                 </p>
               </div>
-              <div className="text-right">
-                <span className="text-xs font-bold text-slate-400 uppercase">Total Score</span>
-                <div className="text-2xl font-black font-mono text-slate-900">
-                  {bid.riskAssessment?.overallScore || 0} / 100
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={handleReVerify}
+                disabled={isReVerifying}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition flex items-center space-x-1.5 shadow-2xs disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isReVerifying ? 'animate-spin' : ''}`} />
+                <span>Recalculate Rules</span>
+              </button>
             </div>
 
             <div className="space-y-3">
@@ -2049,7 +2132,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 <div key={chk.id} className="border border-slate-200 rounded-lg p-4 bg-slate-50/50 space-y-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-1">
                         <span className="font-bold text-xs text-slate-900">{chk.requirementName}</span>
                         <span className="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold">
                           Weight: {chk.weight} pts
@@ -2059,14 +2142,27 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                             MANDATORY
                           </span>
                         )}
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                            chk.status === 'COMPLIANT'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : chk.status === 'EXEMPTED'
+                              ? 'bg-blue-100 text-blue-800'
+                              : chk.status === 'REVIEW'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {chk.status}
+                        </span>
                       </div>
                       <p className="text-xs text-slate-600 mt-1">{chk.evidenceSummary}</p>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <span
-                        className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${
-                          chk.status === 'COMPLIANT'
+                        className={`inline-block px-2.5 py-1 rounded text-xs font-bold font-mono ${
+                          chk.status === 'COMPLIANT' || chk.status === 'EXEMPTED'
                             ? 'bg-emerald-100 text-emerald-800'
                             : chk.status === 'REVIEW'
                             ? 'bg-amber-100 text-amber-800'
@@ -2078,11 +2174,11 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500 font-mono">
+                  <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500 font-mono flex-wrap gap-2">
                     <div>Rule: {chk.deterministicRuleEvaluated}</div>
-                    {chk.issuesFound.length > 0 && (
-                      <div className="text-rose-600 font-sans font-bold">
-                        Issues: {chk.issuesFound.join(', ')}
+                    {chk.issuesFound && chk.issuesFound.length > 0 && (
+                      <div className="text-rose-600 font-sans font-bold text-xs">
+                        Issues: {chk.issuesFound.join('; ')}
                       </div>
                     )}
                   </div>
