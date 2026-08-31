@@ -1,0 +1,6 @@
+{
+  "name": "GEV-VERIFY - GeM Bid Compliance Verification Platform",
+  "description": "AI-Powered Integrated Bid Compliance Verification & Decision-Support Platform for GeM Procurement",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

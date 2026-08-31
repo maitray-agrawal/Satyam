@@ -1,0 +1,335 @@
+import express, { Request, Response, Router } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
+import {
+  getTendersList,
+  getTenderById,
+  createTender,
+  getBidsList,
+  getBidFullDetails,
+  createBidderAndBid,
+  addDocumentToBid,
+  rerunVerificationAndCompliance,
+  saveOfficerDecision,
+  getDashboardStats,
+  getAllAuditLogs,
+} from './db';
+import { VerificationSimulators } from './verificationSimulators';
+import { analyzeDocumentWithGemini, queryCopilot } from './gemini';
+import { Document, RequirementCode } from './types';
+
+export const apiRouter = Router();
+
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Multer configuration for file uploads with size and MIME validation
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, UPLOADS_DIR);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+    const ext = path.extname(file.originalname);
+    cb(null, `doc-${uniqueSuffix}${ext}`);
+  },
+});
+
+const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedMimes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Invalid file format. Only PDF, PNG, JPG, and JPEG files are permitted under GeM procurement rules.'));
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB limit
+  },
+});
+
+// ---------------- DASHBOARD ----------------
+apiRouter.get('/dashboard/stats', async (req: Request, res: Response) => {
+  try {
+    const stats = await getDashboardStats();
+    res.json(stats);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- TENDERS ----------------
+apiRouter.get('/tenders', async (req: Request, res: Response) => {
+  try {
+    const list = await getTendersList();
+    res.json(list);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/tenders/:id', async (req: Request, res: Response) => {
+  try {
+    const tender = await getTenderById(req.params.id);
+    if (!tender) {
+      return res.status(404).json({ error: 'Tender not found' });
+    }
+    res.json(tender);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/tenders', async (req: Request, res: Response) => {
+  try {
+    const { tender, requirements } = req.body;
+    if (!tender || !tender.tenderId || !tender.title) {
+      return res.status(400).json({ error: 'Tender ID and Title are required' });
+    }
+    const created = await createTender(tender, requirements || []);
+    res.status(201).json(created);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- BIDS & BIDDERS ----------------
+apiRouter.get('/bids', async (req: Request, res: Response) => {
+  try {
+    const tenderId = req.query.tenderId as string | undefined;
+    const bids = await getBidsList(tenderId);
+    res.json(bids);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/bids/:id', async (req: Request, res: Response) => {
+  try {
+    const bid = await getBidFullDetails(req.params.id);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json(bid);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/bids', async (req: Request, res: Response) => {
+  try {
+    const { tenderId, bidder, quotedAmount } = req.body;
+    if (!tenderId || !bidder || !bidder.legalName || !bidder.pan || !bidder.gstin) {
+      return res.status(400).json({ error: 'Tender ID, Bidder Legal Name, PAN, and GSTIN are required' });
+    }
+    const newBid = await createBidderAndBid(tenderId, bidder, quotedAmount || 1000000);
+    res.status(201).json(newBid);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/bids/:id/re-verify', async (req: Request, res: Response) => {
+  try {
+    const updated = await rerunVerificationAndCompliance(req.params.id);
+    if (!updated) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/bids/:id/decision', async (req: Request, res: Response) => {
+  try {
+    const { officerName, officerDesignation, decision, comments, conditions } = req.body;
+    if (!decision || !comments) {
+      return res.status(400).json({ error: 'Decision and Officer comments are mandatory' });
+    }
+    const record = await saveOfficerDecision(req.params.id, {
+      officerName: officerName || 'Rajiv K. Sharma',
+      officerDesignation: officerDesignation || 'Director (Procurement & Contracts)',
+      decision,
+      comments,
+      conditions,
+    });
+    res.json(record);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- DOCUMENT UPLOADS & GEMINI EXTRACTION ----------------
+apiRouter.post('/documents/upload', upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const { bidId, bidderId, tenderId, documentType } = req.body;
+    if (!bidId || !bidderId || !tenderId || !documentType) {
+      return res.status(400).json({ error: 'bidId, bidderId, tenderId, and documentType are required' });
+    }
+
+    const filePath = req.file.path;
+    const fileBuffer = fs.readFileSync(filePath);
+    const sha256Hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    const base64Content = fileBuffer.toString('base64');
+
+    const tempDoc: Document = {
+      id: 'temp',
+      bidId,
+      bidderId,
+      tenderId,
+      documentType: documentType as RequirementCode,
+      fileName: req.file.filename,
+      fileOriginalName: req.file.originalname,
+      fileSize: req.file.size,
+      mimeType: req.file.mimetype,
+      fileUrl: `/uploads/${req.file.filename}`,
+      uploadTimestamp: new Date().toISOString(),
+      status: 'PENDING',
+      verificationStatus: 'NOT_VERIFIED',
+      sha256Hash,
+    };
+
+    // Analyze with Gemini
+    const extractedData = await analyzeDocumentWithGemini(tempDoc, base64Content, req.file.mimetype);
+
+    // Save document and extracted fields to DB
+    const savedDoc = await addDocumentToBid(
+      {
+        bidId,
+        bidderId,
+        tenderId,
+        documentType: documentType as RequirementCode,
+        fileName: req.file.filename,
+        fileOriginalName: req.file.originalname,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+        fileUrl: `/uploads/${req.file.filename}`,
+        sha256Hash,
+      },
+      extractedData.fields.map((f, idx) => ({
+        id: `f-${idx}`,
+        documentId: '',
+        fieldName: f.fieldName,
+        fieldValue: f.fieldValue,
+        confidence: f.confidence,
+        sourcePage: f.sourcePage || 1,
+        isPresent: f.isPresent,
+        rawSnippet: f.rawSnippet,
+      }))
+    );
+
+    // Re-evaluate bid compliance automatically
+    await rerunVerificationAndCompliance(bidId);
+    const updatedBid = await getBidFullDetails(bidId);
+
+    res.status(201).json({
+      document: savedDoc,
+      extraction: extractedData,
+      updatedBid,
+    });
+  } catch (err: any) {
+    console.error('Upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- GOVERNMENT VERIFICATION SIMULATORS (MOCK APIS) ----------------
+apiRouter.get('/verify/gst', (req: Request, res: Response) => {
+  const gstin = (req.query.gstin as string) || '';
+  res.json(VerificationSimulators.verifyGst(gstin));
+});
+
+apiRouter.get('/verify/pan', (req: Request, res: Response) => {
+  const pan = (req.query.pan as string) || '';
+  res.json(VerificationSimulators.verifyPan(pan));
+});
+
+apiRouter.get('/verify/udyam', (req: Request, res: Response) => {
+  const udyam = (req.query.udyam as string) || (req.query.udyamNumber as string) || '';
+  res.json(VerificationSimulators.verifyUdyam(udyam));
+});
+
+apiRouter.get('/verify/income-tax', (req: Request, res: Response) => {
+  const pan = (req.query.pan as string) || '';
+  res.json(VerificationSimulators.verifyIncomeTax(pan));
+});
+
+apiRouter.get('/verify/epfo', (req: Request, res: Response) => {
+  const estId = req.query.estId as string;
+  const pan = req.query.pan as string;
+  res.json(VerificationSimulators.verifyEpfo(estId, pan));
+});
+
+apiRouter.get('/verify/esic', (req: Request, res: Response) => {
+  const code = req.query.code as string;
+  const pan = req.query.pan as string;
+  res.json(VerificationSimulators.verifyEsic(code, pan));
+});
+
+apiRouter.get('/verify/startup', (req: Request, res: Response) => {
+  const dpiit = (req.query.dpiit as string) || '';
+  res.json(VerificationSimulators.verifyStartup(dpiit));
+});
+
+apiRouter.get('/verify/nsic', (req: Request, res: Response) => {
+  const regNo = (req.query.regNo as string) || '';
+  res.json(VerificationSimulators.verifyNsic(regNo));
+});
+
+apiRouter.get('/verify/blacklist', (req: Request, res: Response) => {
+  const pan = req.query.pan as string;
+  const gstin = req.query.gstin as string;
+  const name = req.query.name as string;
+  res.json(VerificationSimulators.verifyBlacklist(pan, gstin, name));
+});
+
+apiRouter.get('/verify/oem', (req: Request, res: Response) => {
+  const oemName = req.query.oemName as string;
+  const authCode = req.query.authCode as string;
+  res.json(VerificationSimulators.verifyOem(oemName, authCode));
+});
+
+apiRouter.get('/verify/mii', (req: Request, res: Response) => {
+  const companyName = (req.query.companyName as string) || '';
+  res.json(VerificationSimulators.verifyMii(companyName));
+});
+
+// ---------------- AI COPILOT ----------------
+apiRouter.post('/ai/copilot', async (req: Request, res: Response) => {
+  try {
+    const { query, bidContext } = req.body;
+    if (!query) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+    const responseText = await queryCopilot(query, bidContext || {});
+    res.json({ response: responseText });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- AUDIT LOGS ----------------
+apiRouter.get('/audit-logs', async (req: Request, res: Response) => {
+  try {
+    const bidId = req.query.bidId as string | undefined;
+    const tenderId = req.query.tenderId as string | undefined;
+    const eventType = req.query.eventType as string | undefined;
+    const logs = await getAllAuditLogs({ bidId, tenderId, eventType });
+    res.json(logs);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
