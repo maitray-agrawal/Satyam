@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, Building2, CheckCircle, AlertTriangle, FileText, Activity, Database, Scale, UserCheck } from 'lucide-react';
+import { Shield, Building2, CheckCircle, AlertTriangle, FileText, Activity, Database, Scale, UserCheck, Sparkles } from 'lucide-react';
 import { User } from '../types';
 
 interface NavbarProps {
@@ -147,6 +147,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               <FileText className="w-4 h-4" />
               <span>Audit Ledger</span>
             </button>
+
+            <a
+              id="nav-tab-openapi"
+              href="/api/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-2 rounded-md text-xs font-semibold flex items-center space-x-1.5 text-amber-300 hover:bg-slate-800 hover:text-white transition-all border border-amber-500/30 bg-amber-500/10"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>OpenAPI Docs</span>
+            </a>
           </nav>
 
           {/* Right Action Area & User Profile Switcher */}

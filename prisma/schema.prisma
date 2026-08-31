@@ -1,0 +1,401 @@
+// Prisma Schema for GEV-VERIFY (GeM Enterprise Verification Platform)
+// Database: PostgreSQL with pgvector support
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+enum UserRole {
+  ADMIN
+  PROCUREMENT_OFFICER
+  AUDITOR
+  REVIEWER
+}
+
+enum BidStatus {
+  SUBMITTED
+  UNDER_EVALUATION
+  QUALIFIED
+  DISQUALIFIED
+  CLARIFICATION_REQUESTED
+  ON_HOLD
+}
+
+enum DocumentStatus {
+  UPLOADED
+  QUEUED
+  EXTRACTING
+  ANALYZED
+  FAILED
+}
+
+enum StorageProvider {
+  LOCAL
+  GCS
+  AWS_S3
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  NON_COMPLIANT
+  MISSING
+  MISMATCH
+  EXPIRED
+  INVALID
+  NOT_APPLICABLE
+  REQUIRES_MANUAL_REVIEW
+  EXEMPTED
+  REVIEW
+}
+
+enum RuleSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RecommendationType {
+  COMPLIANT
+  MANUAL_REVIEW
+  NON_COMPLIANT
+}
+
+enum DecisionType {
+  APPROVE
+  REJECT
+  REQUEST_CLARIFICATION
+  HOLD
+}
+
+enum JobStatus {
+  QUEUED
+  EXTRACTING
+  VERIFYING
+  EVALUATING
+  RISK_ASSESSMENT
+  AI_RECOMMENDATION
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id           String            @id @default(uuid())
+  email        String            @unique
+  name         String
+  role         UserRole          @default(PROCUREMENT_OFFICER)
+  designation  String
+  department   String
+  organization String            @default("Government e-Marketplace")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  decisions    OfficerDecision[]
+  auditLogs    AuditLog[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model Tender {
+  id                  String              @id @default(uuid())
+  tenderId            String              @unique
+  title               String
+  organization        String
+  category            String
+  estimatedValue      Float
+  ecmAmount           Float?
+  ebgRequired         Boolean             @default(false)
+  submissionDeadline  DateTime
+  openingDate         DateTime
+  evaluationCriteria  String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  requirements        TenderRequirement[]
+  bids                Bid[]
+  auditLogs           AuditLog[]
+
+  @@index([tenderId])
+  @@index([category])
+  @@index([organization])
+}
+
+model TenderRequirement {
+  id                    String            @id @default(uuid())
+  tenderId              String
+  requirementCode       String
+  requirementName       String
+  isRequired            Boolean           @default(true)
+  weight                Int               @default(10)
+  minThreshold          Float?
+  customRuleDescription String?
+  issuingAuthority      String?
+  formatRequired        String?
+  createdAt             DateTime          @default(now())
+  tender                Tender            @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  complianceChecks      ComplianceCheck[]
+
+  @@unique([tenderId, requirementCode])
+  @@index([tenderId])
+}
+
+model Bidder {
+  id               String   @id @default(uuid())
+  legalName        String
+  cin              String?
+  pan              String
+  gstin            String
+  udyamNumber      String?
+  dppitNumber      String?
+  nsicNumber       String?
+  epfoNumber       String?
+  esicNumber       String?
+  constitution     String
+  address          String
+  state            String
+  district         String
+  pincode          String
+  isStartup        Boolean  @default(false)
+  isMsme           Boolean  @default(false)
+  msmeCategory     String?
+  authorizedPerson String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  bids             Bid[]
+
+  @@index([gstin])
+  @@index([pan])
+  @@index([legalName])
+}
+
+model Bid {
+  id               String            @id @default(uuid())
+  tenderId         String
+  bidderId         String
+  bidNumber        String            @unique
+  quotedAmount     Float
+  submittedAt      DateTime          @default(now())
+  technicalScore   Float?
+  commercialScore  Float?
+  overallScore     Float?
+  riskLevel        RiskLevel?
+  status           BidStatus         @default(SUBMITTED)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  tender           Tender            @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  bidder           Bidder            @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  documents        BidDocument[]
+  extractedData    ExtractedData[]
+  verifications    Verification[]
+  complianceChecks ComplianceCheck[]
+  riskAssessment   RiskAssessment?
+  aiRecommendation AIRecommendation?
+  officerDecision  OfficerDecision?
+  jobs             ProcessingJob[]
+  auditLogs        AuditLog[]
+
+  @@index([tenderId])
+  @@index([bidderId])
+  @@index([bidNumber])
+  @@index([status])
+}
+
+model BidDocument {
+  id              String                @id @default(uuid())
+  bidId           String
+  requirementCode String
+  fileName        String
+  originalName    String
+  fileType        String
+  fileSize        Int
+  mimeType        String
+  storagePath     String
+  storageProvider StorageProvider       @default(LOCAL)
+  sha256Hash      String
+  status          DocumentStatus        @default(UPLOADED)
+  uploadedAt      DateTime              @default(now())
+  metadataJson    String?
+  bid             Bid                   @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  extractedData   ExtractedData[]
+  vectorChunks    DocumentChunkVector[]
+
+  @@index([bidId])
+  @@index([requirementCode])
+  @@index([sha256Hash])
+}
+
+model DocumentChunkVector {
+  id          String                 @id @default(uuid())
+  documentId  String
+  chunkIndex  Int
+  pageNumber  Int?
+  content     String
+  embedding   Unsupported("vector")?
+  metadata    String?
+  createdAt   DateTime               @default(now())
+  document    BidDocument            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+}
+
+model ExtractedData {
+  id              String      @id @default(uuid())
+  bidId           String
+  documentId      String
+  requirementCode String
+  fieldName       String
+  fieldValue      String
+  confidenceScore Float       @default(1.0)
+  rawTextSnippet  String?
+  pageNumber      Int?
+  boundingBoxJson String?
+  extractedAt     DateTime    @default(now())
+  bid             Bid         @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  document        BidDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([bidId])
+  @@index([requirementCode])
+  @@index([fieldName])
+}
+
+model Verification {
+  id              String   @id @default(uuid())
+  bidId           String
+  requirementCode String
+  apiEndpoint     String
+  simulated       Boolean  @default(true)
+  matchStatus     String
+  confidenceScore Float    @default(1.0)
+  evidenceDetails String
+  verifiedData    String?
+  verifiedAt      DateTime @default(now())
+  bid             Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  @@index([bidId])
+  @@index([requirementCode])
+  @@index([matchStatus])
+}
+
+model ComplianceCheck {
+  id                         String            @id @default(uuid())
+  bidId                      String
+  ruleId                     String            @default("RULE-01")
+  requirementCode            String
+  requirementName            String
+  requirementId              String?
+  isRequired                 Boolean           @default(true)
+  weight                     Int               @default(10)
+  status                     ComplianceStatus  @default(COMPLIANT)
+  severity                   RuleSeverity      @default(HIGH)
+  scoreAchieved              Int               @default(0)
+  evidenceSummary            String
+  deterministicRuleEvaluated String
+  issuesFoundJson            String            @default("[]")
+  evaluatedAt                DateTime          @default(now())
+  bid                        Bid               @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  requirement                TenderRequirement? @relation(fields: [requirementId], references: [id])
+
+  @@index([bidId])
+  @@index([requirementCode])
+  @@index([status])
+}
+
+model RiskAssessment {
+  id                 String    @id @default(uuid())
+  bidId              String    @unique
+  overallScore       Int       @default(0)
+  riskLevel          RiskLevel @default(HIGH)
+  passedChecksCount  Int       @default(0)
+  failedChecksCount  Int       @default(0)
+  pendingChecksCount Int       @default(0)
+  criticalFlagsJson  String    @default("[]")
+  calculatedAt       DateTime  @default(now())
+  bid                Bid       @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  @@index([riskLevel])
+}
+
+model AIRecommendation {
+  id                      String             @id @default(uuid())
+  bidId                   String             @unique
+  recommendation          RecommendationType @default(MANUAL_REVIEW)
+  reason                  String
+  criticalIssuesJson      String             @default("[]")
+  missingRequirementsJson String             @default("[]")
+  recommendedActionsJson  String             @default("[]")
+  modelUsed               String             @default("gemini-3.7-flash")
+  disclaimerText          String
+  generatedAt             DateTime           @default(now())
+  bid                     Bid                @relation(fields: [bidId], references: [id], onDelete: Cascade)
+}
+
+model OfficerDecision {
+  id                 String       @id @default(uuid())
+  bidId              String       @unique
+  decision           DecisionType
+  officerId          String
+  officerName        String
+  officerDesignation String
+  department         String
+  comments           String
+  conditionsJson     String       @default("[]")
+  auditHash          String
+  decidedAt          DateTime     @default(now())
+  bid                Bid          @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  officer            User         @relation(fields: [officerId], references: [id])
+}
+
+model ProcessingJob {
+  id           String    @id @default(uuid())
+  bidId        String
+  jobType      String    @default("FULL_COMPLIANCE_EVALUATION")
+  status       JobStatus @default(QUEUED)
+  progress     Int       @default(0)
+  currentStage String    @default("QUEUED")
+  resultJson   String?
+  error        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bid          Bid       @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  @@index([bidId])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  bidId       String?
+  tenderId    String?
+  eventType   String
+  action      String
+  actorId     String
+  actorName   String
+  actorRole   String
+  detailsJson String
+  ipAddress   String   @default("127.0.0.1")
+  userAgent   String   @default("GeM Internal Client")
+  checksum    String
+  timestamp   DateTime @default(now())
+  bid         Bid?     @relation(fields: [bidId], references: [id], onDelete: SetNull)
+  tender      Tender?  @relation(fields: [tenderId], references: [id], onDelete: SetNull)
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([bidId])
+  @@index([tenderId])
+  @@index([eventType])
+  @@index([timestamp])
+}

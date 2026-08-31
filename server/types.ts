@@ -1,5 +1,7 @@
 export type TenderStatus = 'ACTIVE' | 'EVALUATION' | 'TECHNICAL_OPENING' | 'FINANCIAL_OPENING' | 'AWARDED' | 'CANCELLED';
 
+export type UserRole = 'ADMIN' | 'PROCUREMENT_OFFICER' | 'AUDITOR' | 'REVIEWER' | 'TECHNICAL_EVALUATOR' | 'FINANCE_MEMBER';
+
 export type RequirementCode =
   | 'GST'
   | 'PAN'

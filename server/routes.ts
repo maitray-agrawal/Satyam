@@ -20,8 +20,23 @@ import {
 import { VerificationSimulators } from './verificationSimulators';
 import { analyzeDocumentWithGemini, queryCopilot } from './gemini';
 import { Document, RequirementCode } from './types';
+import { AuthService } from './modules/auth/auth.service';
+import { authMiddleware, requireRole } from './modules/auth/auth.middleware';
+import { openApiSpec } from './openapi/openapi.spec';
+import { initializeVerificationRegistry } from './integrations/verification';
+import { JobQueueService } from './jobs/job-queue.service';
+import { EvidenceService } from './ai/evidence.service';
+import { createServiceLogger } from './observability/logger';
+
+const log = createServiceLogger('ApiGateway');
+const verificationRegistry = initializeVerificationRegistry();
+const jobQueue = JobQueueService.getInstance();
+const evidenceService = EvidenceService.getInstance();
 
 export const apiRouter = Router();
+
+// Apply auth middleware to tag user role on requests
+apiRouter.use(authMiddleware);
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
@@ -422,6 +437,160 @@ apiRouter.get('/audit-logs', async (req: Request, res: Response) => {
     const eventType = req.query.eventType as string | undefined;
     const logs = await getAllAuditLogs({ bidId, tenderId, eventType });
     res.json(logs);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- ENTERPRISE AUTH & RBAC ----------------
+apiRouter.get('/auth/me', (req: Request, res: Response) => {
+  res.json({
+    user: req.user,
+    allDemoUsers: AuthService.listAllDemoUsers(),
+  });
+});
+
+apiRouter.post('/auth/switch-role', (req: Request, res: Response) => {
+  const { roleOrId } = req.body;
+  const user = AuthService.getCurrentUser(roleOrId);
+  res.json({
+    success: true,
+    user,
+    message: `Active persona switched to ${user.name} (${user.role})`,
+  });
+});
+
+// ---------------- OPENAPI SPECIFICATION & DOCUMENTATION ----------------
+apiRouter.get('/openapi.json', (req: Request, res: Response) => {
+  res.json(openApiSpec);
+});
+
+apiRouter.get('/docs', (req: Request, res: Response) => {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GEV-VERIFY API Documentation | OpenAPI 3.0</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
+  <style>
+    body { margin: 0; background: #fafafa; font-family: sans-serif; }
+    .topbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+  <script>
+    window.onload = () => {
+      window.ui = SwaggerUIBundle({
+        url: '/api/openapi.json',
+        dom_id: '#swagger-ui',
+        deepLinking: true,
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          SwaggerUIBundle.SwaggerUIStandalonePreset
+        ],
+        layout: "BaseLayout"
+      });
+    };
+  </script>
+</body>
+</html>`;
+  res.setHeader('Content-Type', 'text/html');
+  res.send(html);
+});
+
+// ---------------- STATUTORY VERIFICATION ADAPTERS REGISTRY ----------------
+apiRouter.get('/verification/adapters', (req: Request, res: Response) => {
+  const adapters = verificationRegistry.getAllAdapters().map((a) => ({
+    serviceName: a.serviceName,
+    supportedCodes: a.supportedRequirementCodes,
+    architecture: 'Simulated / Authorizable Gov API Integration',
+    simulationNotice: 'DEMO / SIMULATED GOVERNMENT DATA',
+    status: 'ACTIVE_HEALTHY',
+  }));
+  res.json({
+    count: adapters.length,
+    adapters,
+  });
+});
+
+apiRouter.post('/verification/adapters/:service/test', async (req: Request, res: Response) => {
+  try {
+    const { service } = req.params;
+    const adapter = verificationRegistry.getAdapter(service);
+    if (!adapter) {
+      return res.status(404).json({ error: `Adapter for service ${service} not registered` });
+    }
+    const result = await adapter.verify({
+      requirementCode: req.body.requirementCode || 'REQ-01',
+      bidId: req.body.bidId || 'test-bid',
+      bidderGstin: req.body.gstin,
+      bidderPan: req.body.pan,
+      bidderLegalName: req.body.legalName,
+      documentData: req.body.data,
+    });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- BACKGROUND JOB QUEUE ----------------
+apiRouter.get('/jobs', (req: Request, res: Response) => {
+  res.json(jobQueue.getAllJobs());
+});
+
+apiRouter.get('/jobs/:id', (req: Request, res: Response) => {
+  const job = jobQueue.getJob(req.params.id);
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+  res.json(job);
+});
+
+// ---------------- EVIDENCE GROUNDED RAG SEARCH ----------------
+apiRouter.post('/evidence/search', async (req: Request, res: Response) => {
+  try {
+    const { bidId, query, topK, requirementCode } = req.body;
+    if (!bidId || !query) {
+      return res.status(400).json({ error: 'bidId and query are required' });
+    }
+    const results = await evidenceService.retrieveRelevantEvidence(bidId, query, topK || 3, requirementCode);
+    res.json({
+      bidId,
+      query,
+      resultsCount: results.length,
+      evidence: results,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------- EXECUTIVE SUMMARY REPORTS ----------------
+apiRouter.get('/reports/:bidId/executive-summary', async (req: Request, res: Response) => {
+  try {
+    const bid = await getBidFullDetails(req.params.bidId);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json({
+      tenderId: bid.tender?.tenderId,
+      tenderTitle: bid.tender?.title,
+      bidderName: bid.bidder?.legalName,
+      bidNumber: bid.bidNumber,
+      deterministicScore: bid.overallScore,
+      riskLevel: bid.riskLevel,
+      complianceStatus: bid.status,
+      aiAdvisory: bid.aiRecommendation?.recommendation,
+      aiReason: bid.aiRecommendation?.reason,
+      officerDecision: bid.officerDecision?.decision || 'PENDING',
+      officerSignoff: bid.officerDecision?.officerName || null,
+      generatedAt: new Date().toISOString(),
+      statutoryStandard: 'General Financial Rules (GFR 2017) Rule 144 & GeM GTC',
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
