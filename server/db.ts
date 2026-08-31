@@ -181,6 +181,8 @@ function initSchema(db: Database) {
       sourcePage INTEGER,
       isPresent INTEGER NOT NULL,
       rawSnippet TEXT,
+      missingReason TEXT,
+      category TEXT,
       FOREIGN KEY(documentId) REFERENCES documents(id)
     );
 
@@ -1118,17 +1120,25 @@ export async function addDocumentToBid(
   if (extractedFields && extractedFields.length > 0) {
     for (const f of extractedFields) {
       const fId = `field-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      database.run(
-        `INSERT INTO extracted_fields (id, documentId, fieldName, fieldValue, confidence, sourcePage, isPresent, rawSnippet) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [fId, id, f.fieldName, f.fieldValue, f.confidence, f.sourcePage || 1, f.isPresent ? 1 : 0, f.rawSnippet || '']
-      );
+      try {
+        database.run(
+          `INSERT INTO extracted_fields (id, documentId, fieldName, fieldValue, confidence, sourcePage, isPresent, rawSnippet, missingReason, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [fId, id, f.fieldName, f.fieldValue, f.confidence, f.sourcePage || 1, f.isPresent ? 1 : 0, f.rawSnippet || '', f.missingReason || null, f.category || 'STATUTORY']
+        );
+      } catch (err) {
+        // Fallback for schema variance
+        database.run(
+          `INSERT INTO extracted_fields (id, documentId, fieldName, fieldValue, confidence, sourcePage, isPresent, rawSnippet) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [fId, id, f.fieldName, f.fieldValue, f.confidence, f.sourcePage || 1, f.isPresent ? 1 : 0, f.rawSnippet || '']
+        );
+      }
     }
   }
 
   // Audit Log
   database.run(
     `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`aud-${Date.now()}`, doc.bidId, doc.tenderId, 'DOCUMENT_UPLOADED', 'Procurement Officer', 'USER', `Uploaded ${doc.documentType} document: ${doc.fileOriginalName} (${Math.round(doc.fileSize / 1024)} KB)`, JSON.stringify({ fileName: doc.fileOriginalName, type: doc.documentType }), now]
+    [`aud-${Date.now()}`, doc.bidId, doc.tenderId, 'DOCUMENT_UPLOADED', 'Procurement Officer', 'USER', `Uploaded ${doc.documentType} document: ${doc.fileOriginalName} (${Math.round(doc.fileSize / 1024)} KB) - Gemini 3.7 Flash Analyzed`, JSON.stringify({ fileName: doc.fileOriginalName, type: doc.documentType, extractedFieldsCount: extractedFields?.length || 0 }), now]
   );
 
   saveDb();
@@ -1138,6 +1148,56 @@ export async function addDocumentToBid(
     uploadTimestamp: now,
     status: 'ANALYZED',
     verificationStatus: 'VALID',
+    extractedFields,
+  };
+}
+
+export async function reanalyzeDocumentInDb(
+  documentId: string,
+  newFields: ExtractedField[]
+): Promise<Document | null> {
+  const database = await getDb();
+  const docRes = database.exec(`SELECT * FROM documents WHERE id = '${documentId}'`);
+  if (!docRes.length || !docRes[0].values.length) return null;
+
+  const docCols = docRes[0].columns;
+  const docObj: any = {};
+  docCols.forEach((c, idx) => (docObj[c] = docRes[0].values[0][idx]));
+
+  // Delete previous extracted fields
+  database.run(`DELETE FROM extracted_fields WHERE documentId = '${documentId}'`);
+
+  // Insert newly analyzed fields
+  for (const f of newFields) {
+    const fId = `field-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    try {
+      database.run(
+        `INSERT INTO extracted_fields (id, documentId, fieldName, fieldValue, confidence, sourcePage, isPresent, rawSnippet, missingReason, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [fId, documentId, f.fieldName, f.fieldValue, f.confidence, f.sourcePage || 1, f.isPresent ? 1 : 0, f.rawSnippet || '', f.missingReason || null, f.category || 'STATUTORY']
+      );
+    } catch (err) {
+      database.run(
+        `INSERT INTO extracted_fields (id, documentId, fieldName, fieldValue, confidence, sourcePage, isPresent, rawSnippet) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [fId, documentId, f.fieldName, f.fieldValue, f.confidence, f.sourcePage || 1, f.isPresent ? 1 : 0, f.rawSnippet || '']
+      );
+    }
+  }
+
+  // Update document status
+  database.run(`UPDATE documents SET status = 'ANALYZED', verificationStatus = 'VALID' WHERE id = '${documentId}'`);
+
+  const now = new Date().toISOString();
+  database.run(
+    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [`aud-${Date.now()}`, docObj.bidId, docObj.tenderId, 'DOCUMENT_REANALYZED', 'Procurement Officer', 'USER', `Re-analyzed ${docObj.documentType} (${docObj.fileOriginalName}) with Gemini 3.7 Flash`, JSON.stringify({ documentId, fieldsCount: newFields.length }), now]
+  );
+
+  saveDb();
+  return {
+    ...docObj,
+    status: 'ANALYZED',
+    verificationStatus: 'VALID',
+    extractedFields: newFields,
   };
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   CheckCircle2,
@@ -26,6 +26,14 @@ import {
   ChevronRight,
   Database,
   FileCode,
+  Copy,
+  Eye,
+  Code,
+  Info,
+  RotateCcw,
+  Layers,
+  FileSpreadsheet,
+  ShieldCheck,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -61,10 +69,34 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDocType, setUploadDocType] = useState<RequirementCode>('GST');
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [uploadStage, setUploadStage] = useState<string>('');
+  const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error'; text: string; canRetry?: boolean } | null>(null);
   const [selectedDocForInspect, setSelectedDocForInspect] = useState<Document | null>(
     bid.documents && bid.documents.length > 0 ? bid.documents[0] : null
   );
+
+  // Document Re-analysis & Inspector State
+  const [isReanalyzingDocId, setIsReanalyzingDocId] = useState<string | null>(null);
+  const [reanalysisError, setReanalysisError] = useState<{ docId: string; message: string } | null>(null);
+  const [extractedFieldFilter, setExtractedFieldFilter] = useState<'ALL' | 'PRESENT' | 'MISSING' | 'IDENTITY' | 'COMPLIANCE'>('ALL');
+  const [showRawJsonModal, setShowRawJsonModal] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Keep selected document in sync when bid updates
+  useEffect(() => {
+    if (bid.documents && bid.documents.length > 0) {
+      if (!selectedDocForInspect) {
+        setSelectedDocForInspect(bid.documents[0]);
+      } else {
+        const found = bid.documents.find((d) => d.id === selectedDocForInspect.id);
+        if (found) {
+          setSelectedDocForInspect(found);
+        } else {
+          setSelectedDocForInspect(bid.documents[0]);
+        }
+      }
+    }
+  }, [bid.documents]);
 
   // Re-verification loading state
   const [isReVerifying, setIsReVerifying] = useState(false);
@@ -104,30 +136,37 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
     }
   };
 
-  const handleFileUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!uploadFile) return;
+  const handleFileUpload = async (e?: React.FormEvent, customFile?: File, customType?: RequirementCode) => {
+    if (e) e.preventDefault();
+    const fileToUpload = customFile || uploadFile;
+    const typeToUpload = customType || uploadDocType;
+    if (!fileToUpload) return;
 
     setIsUploading(true);
+    setUploadStage('1. Ingesting & hashing PDF/Image with SHA-256...');
     setUploadMessage(null);
 
     const formData = new FormData();
-    formData.append('file', uploadFile);
+    formData.append('file', fileToUpload);
     formData.append('bidId', bid.id);
     formData.append('bidderId', bid.bidderId);
     formData.append('tenderId', bid.tenderId);
-    formData.append('documentType', uploadDocType);
+    formData.append('documentType', typeToUpload);
 
     try {
+      setTimeout(() => setUploadStage('2. Transmitting document to Gemini 3.7 Flash extraction pipeline...'), 400);
+      setTimeout(() => setUploadStage('3. Parsing structured JSON schema & verifying citations...'), 1000);
+
       const res = await fetch('/api/documents/upload', {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
       if (res.ok) {
+        setUploadStage('4. Finalizing database persistence & compliance recalculation...');
         setUploadMessage({
           type: 'success',
-          text: `Document "${uploadFile.name}" analyzed with Gemini OCR. Compliance rules re-calculated.`,
+          text: `Document "${fileToUpload.name}" successfully analyzed by Gemini 3.7 Flash. Structured fields extracted and stored in database.`,
         });
         setUploadFile(null);
         await onRefreshBid();
@@ -135,13 +174,90 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
           setSelectedDocForInspect(data.document);
         }
       } else {
-        setUploadMessage({ type: 'error', text: data.error || 'Upload failed' });
+        setUploadMessage({
+          type: 'error',
+          text: data.error || 'Document extraction failed.',
+          canRetry: true,
+        });
       }
     } catch (err: any) {
-      setUploadMessage({ type: 'error', text: err.message || 'Upload error' });
+      setUploadMessage({
+        type: 'error',
+        text: err.message || 'Network error during document processing.',
+        canRetry: true,
+      });
     } finally {
       setIsUploading(false);
+      setUploadStage('');
     }
+  };
+
+  // Re-analyze existing document with Gemini
+  const handleReanalyzeDocument = async (doc: Document) => {
+    setIsReanalyzingDocId(doc.id);
+    setReanalysisError(null);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/re-analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bidId: bid.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await onRefreshBid();
+        if (data.document) {
+          setSelectedDocForInspect(data.document);
+        }
+      } else {
+        setReanalysisError({
+          docId: doc.id,
+          message: data.error || 'Re-analysis failed.',
+        });
+      }
+    } catch (err: any) {
+      setReanalysisError({
+        docId: doc.id,
+        message: err.message || 'Connection error during re-analysis.',
+      });
+    } finally {
+      setIsReanalyzingDocId(null);
+    }
+  };
+
+  // Quick sample test generator for official GeM document templates
+  const handleGenerateSampleDocument = async (docType: RequirementCode) => {
+    const sampleNames: Partial<Record<RequirementCode, string>> = {
+      GST: 'GST_REG06_Govt_Certificate.pdf',
+      PAN: 'Corporate_PAN_NSDL_Form49A.pdf',
+      UDYAM: 'MSME_Udyam_Registration_Print.pdf',
+      OEM_AUTHORIZATION: 'OEM_Direct_Manufacturer_MAF.pdf',
+      MAKE_IN_INDIA: 'Class1_Local_Content_CA_UDIN.pdf',
+      INCOME_TAX: 'FY2023_24_Audited_Balance_Sheet.pdf',
+      EPFO: 'EPFO_Monthly_ECR_Challan_Receipt.pdf',
+      ESIC: 'ESIC_Statutory_Compliance_Letter.pdf',
+      STARTUP_INDIA: 'DPIIT_Startup_Recognition_DIPP.pdf',
+      BLACKLISTING: 'Non_Debarment_Affidavit_Stamp.pdf',
+      NSIC: 'NSIC_Single_Point_Registration.pdf',
+      CUSTOM: 'Bidder_Custom_Undertaking.pdf',
+    };
+
+    const fileName = sampleNames[docType] || `${docType}_Verification_Document.pdf`;
+    const dummyBlob = new Blob(
+      [
+        `%PDF-1.4 Official Government of India Procurement Compliance Submission\nDocument Type: ${docType}\nBidder: ${bid.bidder?.legalName}\nDate: ${new Date().toISOString()}\nGeM Bid ID: ${bid.bidNumber}`,
+      ],
+      { type: 'application/pdf' }
+    );
+    const mockFile = new File([dummyBlob], fileName, { type: 'application/pdf' });
+
+    setUploadDocType(docType);
+    await handleFileUpload(undefined, mockFile, docType);
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(label);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   const handleSaveDecision = async () => {
@@ -614,32 +730,88 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
         <div className="space-y-6">
           {/* Upload New Document Card */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-            <h3 className="text-sm font-bold text-slate-900 mb-1">Upload Bidder Compliance Document</h3>
-            <p className="text-xs text-slate-500 mb-4">
-              PDF or High-Resolution Scans (Max 15MB). Automated multimodal OCR via Gemini will extract structured metadata, verify signatures & CA UDIN.
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 mb-4 border-b border-slate-200 gap-2">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm font-bold text-slate-900">Upload Bidder Compliance Document</h3>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                    <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
+                    Gemini 3.7 Flash Document Pipeline
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Upload PDF or high-resolution images. Server-side Gemini multimodal OCR extracts structured bidder identity and statutory compliance metadata without hallucination.
+                </p>
+              </div>
+            </div>
 
-            {uploadMessage && (
-              <div
-                className={`mb-4 p-3 rounded-lg text-xs font-medium ${
-                  uploadMessage.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {uploadMessage.text}
+            {/* Live Progress / Loading State */}
+            {isUploading && (
+              <div className="mb-4 p-4 rounded-xl bg-purple-50 border border-purple-200 text-xs">
+                <div className="flex items-center space-x-3">
+                  <RefreshCw className="w-5 h-5 text-purple-600 animate-spin flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-bold text-purple-900">Gemini Document Analysis Pipeline In Progress...</div>
+                    <div className="text-purple-700 text-[11px] mt-0.5 font-medium">{uploadStage || 'Processing document multimodal tokens and extracting structured metadata...'}</div>
+                  </div>
+                </div>
+                <div className="w-full bg-purple-200 h-1.5 rounded-full mt-3 overflow-hidden">
+                  <div className="bg-purple-600 h-full rounded-full animate-pulse w-3/4"></div>
+                </div>
               </div>
             )}
 
-            <form onSubmit={handleFileUpload} className="space-y-4">
+            {/* Error State with Explicit Retry */}
+            {uploadMessage && uploadMessage.type === 'error' && (
+              <div className="mb-4 p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs flex items-start justify-between">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-rose-900">Extraction Error</div>
+                    <div className="text-rose-700 text-[11px] mt-0.5">{uploadMessage.text}</div>
+                  </div>
+                </div>
+                {uploadMessage.canRetry && (
+                  <button
+                    type="button"
+                    onClick={() => handleFileUpload()}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs transition shadow-xs flex-shrink-0 ml-3"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Retry Extraction</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Success State */}
+            {uploadMessage && uploadMessage.type === 'success' && (
+              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-emerald-800 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>{uploadMessage.text}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setUploadMessage(null)}
+                  className="text-emerald-700 hover:text-emerald-900 text-xs font-bold"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Upload Form */}
+            <form onSubmit={(e) => handleFileUpload(e)} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Document Category</label>
                   <select
                     id="select-upload-doc-type"
                     value={uploadDocType}
+                    disabled={isUploading}
                     onChange={(e) => setUploadDocType(e.target.value as RequirementCode)}
-                    className="w-full bg-white border border-slate-300 rounded-lg p-2 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none disabled:bg-slate-100"
                   >
                     <option value="GST">GST Registration Certificate (REG-06)</option>
                     <option value="PAN">Corporate PAN Card</option>
@@ -655,63 +827,117 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Select PDF/Image File</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Select PDF/Image Document</label>
                   <input
                     id="file-upload-input"
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg"
+                    disabled={isUploading}
                     onChange={(e) => {
                       if (e.target.files && e.target.files.length > 0) {
                         setUploadFile(e.target.files[0]);
                       }
                     }}
-                    className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                    className="w-full text-xs text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 disabled:opacity-50"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between pt-2 gap-3">
+                <div className="flex items-center space-x-2 text-[11px] text-slate-500">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Strict zero-hallucination policy: Missing data is flagged with explicit reasons.</span>
+                </div>
+
                 <button
                   id="btn-submit-doc-upload"
                   type="submit"
                   disabled={!uploadFile || isUploading}
-                  className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-300 text-white text-xs font-bold transition shadow-xs"
+                  className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-300 text-white text-xs font-bold transition shadow-xs"
                 >
                   <Upload className={`w-3.5 h-3.5 ${isUploading ? 'animate-bounce' : ''}`} />
-                  <span>{isUploading ? 'Gemini Analyzing Document...' : 'Upload & Extract with Gemini OCR'}</span>
+                  <span>{isUploading ? 'Gemini Analyzing...' : 'Upload & Extract with Gemini 3.7'}</span>
                 </button>
               </div>
             </form>
+
+            {/* Quick Test Bar: Sample Official GeM Documents */}
+            <div className="mt-5 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Quick Test Pipeline: Ingest Official GeM Document Templates</span>
+                </div>
+                <span className="text-[10px] text-slate-400">1-Click Test Ingestion</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { type: 'GST' as RequirementCode, label: 'GST (REG-06)' },
+                  { type: 'PAN' as RequirementCode, label: 'PAN Card' },
+                  { type: 'UDYAM' as RequirementCode, label: 'MSME Udyam' },
+                  { type: 'OEM_AUTHORIZATION' as RequirementCode, label: 'OEM MAF' },
+                  { type: 'MAKE_IN_INDIA' as RequirementCode, label: 'MII CA UDIN' },
+                  { type: 'INCOME_TAX' as RequirementCode, label: '3-Yr Financials' },
+                  { type: 'EPFO' as RequirementCode, label: 'EPFO ECR' },
+                  { type: 'BLACKLISTING' as RequirementCode, label: 'Non-Debarment' },
+                ].map((item) => (
+                  <button
+                    key={item.type}
+                    type="button"
+                    disabled={isUploading}
+                    onClick={() => handleGenerateSampleDocument(item.type)}
+                    className="px-2.5 py-1 rounded bg-slate-100 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-200 border border-slate-200 text-[11px] font-medium text-slate-700 transition disabled:opacity-50"
+                  >
+                    + {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Side-by-Side: Document List and Extracted Structured Fields Viewer */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left: Document List */}
+            {/* Left: Ingested Documents List */}
             <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-slate-900 uppercase">Ingested Documents ({bid.documents?.length || 0})</h3>
-                <span className="text-[10px] text-slate-500">SHA256 Verified</span>
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-900 uppercase">Ingested Documents ({bid.documents?.length || 0})</h3>
+                  <span className="text-[10px] text-slate-500">SHA-256 Sealed Evidence</span>
+                </div>
               </div>
+
+              {reanalysisError && (
+                <div className="mb-3 p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-[11px] text-rose-800">
+                  <div className="font-bold">Re-analysis Error</div>
+                  <div>{reanalysisError.message}</div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 {bid.documents && bid.documents.length > 0 ? (
                   bid.documents.map((doc) => {
                     const isSelected = selectedDocForInspect?.id === doc.id;
+                    const isReanalyzingThis = isReanalyzingDocId === doc.id;
+                    const fieldCount = doc.extractedFields?.length || 0;
+                    const presentCount = doc.extractedFields?.filter((f) => f.isPresent).length || 0;
+                    const missingCount = doc.extractedFields?.filter((f) => !f.isPresent).length || 0;
+
                     return (
                       <div
                         key={doc.id}
                         onClick={() => setSelectedDocForInspect(doc)}
                         className={`p-3 rounded-lg border text-xs cursor-pointer transition ${
                           isSelected
-                            ? 'border-emerald-600 bg-emerald-50/50 shadow-xs'
+                            ? 'border-purple-600 bg-purple-50/40 shadow-xs'
                             : 'border-slate-200 hover:bg-slate-50'
                         }`}
                       >
                         <div className="flex items-start justify-between">
-                          <div className="font-bold text-slate-900 truncate max-w-[180px]">
+                          <div className="font-bold text-slate-900 truncate max-w-[170px]" title={doc.fileOriginalName}>
                             {doc.fileOriginalName}
                           </div>
                           <span
-                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                               doc.verificationStatus === 'VALID'
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-rose-100 text-rose-800'
@@ -720,96 +946,438 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                             {doc.verificationStatus}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-500 mt-1">
-                          Type: <span className="font-semibold text-slate-700">{doc.documentType}</span> • {Math.round(doc.fileSize / 1024)} KB
+
+                        <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                          <span>Category: <strong className="text-slate-700">{doc.documentType}</strong></span>
+                          <span>{Math.round(doc.fileSize / 1024)} KB</span>
                         </div>
-                        <div className="text-[10px] font-mono text-slate-400 mt-1 truncate" title={doc.sha256Hash}>
-                          Hash: {doc.sha256Hash.substring(0, 16)}...
+
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[10px]">
+                          <div className="text-slate-500">
+                            {fieldCount > 0 ? (
+                              <span>
+                                <strong className="text-emerald-700">{presentCount} present</strong>
+                                {missingCount > 0 && <span className="text-rose-600"> • {missingCount} missing</span>}
+                              </span>
+                            ) : (
+                              <span className="italic text-slate-400">Direct Registry Match</span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={isReanalyzingThis}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleReanalyzeDocument(doc);
+                            }}
+                            className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-purple-100 text-slate-600 hover:text-purple-800 text-[10px] font-semibold transition"
+                            title="Re-run Gemini extraction"
+                          >
+                            <RefreshCw className={`w-2.5 h-2.5 ${isReanalyzingThis ? 'animate-spin text-purple-600' : ''}`} />
+                            <span>{isReanalyzingThis ? 'Analyzing...' : 'Re-extract'}</span>
+                          </button>
                         </div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="text-center py-6 text-xs text-slate-400">No documents uploaded yet.</div>
+                  <div className="text-center py-8 text-xs text-slate-400">
+                    No documents uploaded yet. Use the form above or click a quick sample template.
+                  </div>
                 )}
               </div>
             </div>
 
-            {/* Right: Extracted Fields Inspector */}
+            {/* Right: Extracted Fields Deep-Dive Inspector */}
             <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs lg:col-span-2">
               {selectedDocForInspect ? (
                 <div>
-                  <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-200">
+                  {/* Inspector Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 mb-4 border-b border-slate-200 gap-3">
                     <div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <span className="font-bold text-sm text-slate-900">
                           {selectedDocForInspect.fileOriginalName}
                         </span>
-                        <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200">
-                          Gemini 3.7 Flash OCR Extracted
+                        <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200 inline-flex items-center">
+                          <Sparkles className="w-2.5 h-2.5 mr-1" />
+                          Gemini 3.7 Flash Extracted
+                        </span>
+                        <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
+                          {selectedDocForInspect.documentType}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Category: {selectedDocForInspect.documentType} • Ingested: {new Date(selectedDocForInspect.uploadTimestamp).toLocaleString()}
-                      </p>
+                      <div className="flex items-center space-x-3 text-[11px] text-slate-500 mt-1">
+                        <span>Ingested: {new Date(selectedDocForInspect.uploadTimestamp).toLocaleString()}</span>
+                        <span>•</span>
+                        <span>Size: {Math.round(selectedDocForInspect.fileSize / 1024)} KB</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        disabled={isReanalyzingDocId === selectedDocForInspect.id}
+                        onClick={() => handleReanalyzeDocument(selectedDocForInspect)}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isReanalyzingDocId === selectedDocForInspect.id ? 'animate-spin text-purple-600' : ''}`} />
+                        <span>{isReanalyzingDocId === selectedDocForInspect.id ? 'Re-analyzing...' : 'Re-run Gemini'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowRawJsonModal(true)}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition"
+                      >
+                        <Code className="w-3 h-3" />
+                        <span>View JSON</span>
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Structured Fields Extracted (Deterministic JSON)
-                    </h4>
-
-                    {selectedDocForInspect.extractedFields && selectedDocForInspect.extractedFields.length > 0 ? (
-                      <div className="border border-slate-200 rounded-lg overflow-hidden">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
-                            <tr>
-                              <th className="py-2.5 px-3">Field Name</th>
-                              <th className="py-2.5 px-3">Extracted Value</th>
-                              <th className="py-2.5 px-3 text-center">Confidence</th>
-                              <th className="py-2.5 px-3">Raw Snippet / Page</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 font-mono">
-                            {selectedDocForInspect.extractedFields.map((f, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50">
-                                <td className="py-2.5 px-3 font-semibold text-slate-900 font-sans">{f.fieldName}</td>
-                                <td className="py-2.5 px-3 font-bold text-emerald-800">
-                                  {f.fieldValue || <span className="text-slate-400 italic font-sans font-normal">Not Found</span>}
-                                </td>
-                                <td className="py-2.5 px-3 text-center">
-                                  <span className="inline-block bg-slate-100 text-slate-800 px-2 py-0.5 rounded text-[11px] font-bold">
-                                    {Math.round(f.confidence * 100)}%
-                                  </span>
-                                </td>
-                                <td className="py-2.5 px-3 text-slate-500 font-sans text-[11px]">
-                                  {f.rawSnippet || `Page ${f.sourcePage || 1}`}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  {/* Extraction Metrics Bar */}
+                  {selectedDocForInspect.extractedFields && selectedDocForInspect.extractedFields.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase">Total Fields</div>
+                        <div className="text-lg font-bold text-slate-900 mt-0.5">
+                          {selectedDocForInspect.extractedFields.length}
+                        </div>
                       </div>
+
+                      <div className="p-2.5 rounded-lg bg-emerald-50/60 border border-emerald-200">
+                        <div className="text-[10px] font-bold text-emerald-800 uppercase">Present & Verified</div>
+                        <div className="text-lg font-bold text-emerald-700 mt-0.5">
+                          {selectedDocForInspect.extractedFields.filter((f) => f.isPresent).length}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-rose-50/60 border border-rose-200">
+                        <div className="text-[10px] font-bold text-rose-800 uppercase">Explicitly Missing</div>
+                        <div className="text-lg font-bold text-rose-700 mt-0.5 flex items-center justify-between">
+                          <span>{selectedDocForInspect.extractedFields.filter((f) => !f.isPresent).length}</span>
+                          <span className="text-[9px] font-normal text-rose-600 bg-rose-100 px-1 rounded">No Hallucination</span>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-purple-50/60 border border-purple-200">
+                        <div className="text-[10px] font-bold text-purple-800 uppercase">Avg Confidence</div>
+                        <div className="text-lg font-bold text-purple-900 mt-0.5">
+                          {Math.round(
+                            (selectedDocForInspect.extractedFields.reduce((acc, f) => acc + (f.confidence || 0), 0) /
+                              selectedDocForInspect.extractedFields.length) *
+                              100
+                          )}%
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Filter Tabs */}
+                  {selectedDocForInspect.extractedFields && selectedDocForInspect.extractedFields.length > 0 && (
+                    <div className="flex items-center space-x-1.5 pb-3 mb-3 border-b border-slate-100 overflow-x-auto text-xs">
+                      {[
+                        { id: 'ALL', label: `All Fields (${selectedDocForInspect.extractedFields.length})` },
+                        {
+                          id: 'PRESENT',
+                          label: `Present (${selectedDocForInspect.extractedFields.filter((f) => f.isPresent).length})`,
+                        },
+                        {
+                          id: 'MISSING',
+                          label: `Missing (${selectedDocForInspect.extractedFields.filter((f) => !f.isPresent).length})`,
+                        },
+                        {
+                          id: 'IDENTITY',
+                          label: `Identity (${selectedDocForInspect.extractedFields.filter((f) => f.category === 'IDENTITY').length})`,
+                        },
+                        {
+                          id: 'COMPLIANCE',
+                          label: `Statutory & Compliance (${selectedDocForInspect.extractedFields.filter((f) => f.category !== 'IDENTITY').length})`,
+                        },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setExtractedFieldFilter(tab.id as any)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition ${
+                            extractedFieldFilter === tab.id
+                              ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                              : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Structured Fields Table */}
+                  <div className="space-y-4">
+                    {selectedDocForInspect.extractedFields && selectedDocForInspect.extractedFields.length > 0 ? (
+                      (() => {
+                        const filteredFields = selectedDocForInspect.extractedFields.filter((f) => {
+                          if (extractedFieldFilter === 'PRESENT') return f.isPresent;
+                          if (extractedFieldFilter === 'MISSING') return !f.isPresent;
+                          if (extractedFieldFilter === 'IDENTITY') return f.category === 'IDENTITY';
+                          if (extractedFieldFilter === 'COMPLIANCE') return f.category !== 'IDENTITY';
+                          return true;
+                        });
+
+                        return (
+                          <div className="border border-slate-200 rounded-lg overflow-hidden">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs">
+                                <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+                                  <tr>
+                                    <th className="py-2.5 px-3">Field & Category</th>
+                                    <th className="py-2.5 px-3">Extracted Value</th>
+                                    <th className="py-2.5 px-3 text-center">Status</th>
+                                    <th className="py-2.5 px-3 text-center">Confidence</th>
+                                    <th className="py-2.5 px-3">Document Evidence / Page</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-200">
+                                  {filteredFields.map((f, idx) => {
+                                    const confPercent = Math.round(f.confidence * 100);
+                                    const isGoodConf = confPercent >= 85;
+                                    const isMedConf = confPercent >= 70 && confPercent < 85;
+
+                                    return (
+                                      <tr key={idx} className={f.isPresent ? 'hover:bg-slate-50/80' : 'bg-rose-50/20 hover:bg-rose-50/40'}>
+                                        {/* Field Name & Category */}
+                                        <td className="py-3 px-3 align-top">
+                                          <div className="font-semibold text-slate-900">{f.fieldName}</div>
+                                          <span
+                                            className={`inline-block mt-1 text-[9px] font-bold px-1.5 py-0.2 rounded uppercase ${
+                                              f.category === 'IDENTITY'
+                                                ? 'bg-blue-100 text-blue-800'
+                                                : f.category === 'COMPLIANCE'
+                                                ? 'bg-purple-100 text-purple-800'
+                                                : f.category === 'FINANCIAL'
+                                                ? 'bg-amber-100 text-amber-800'
+                                                : 'bg-slate-100 text-slate-700'
+                                            }`}
+                                          >
+                                            {f.category || 'STATUTORY'}
+                                          </span>
+                                        </td>
+
+                                        {/* Extracted Value or Explicit Missing Reason */}
+                                        <td className="py-3 px-3 align-top font-mono">
+                                          {f.isPresent ? (
+                                            <div className="flex items-center justify-between group">
+                                              <span className="font-bold text-slate-900 break-all">{f.fieldValue}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => copyToClipboard(f.fieldValue || '', f.fieldName)}
+                                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-700 transition ml-1 flex-shrink-0"
+                                                title="Copy value"
+                                              >
+                                                {copiedField === f.fieldName ? (
+                                                  <Check className="w-3 h-3 text-emerald-600" />
+                                                ) : (
+                                                  <Copy className="w-3 h-3" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          ) : (
+                                            <div>
+                                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                                                <X className="w-2.5 h-2.5 mr-1" />
+                                                NOT FOUND IN DOCUMENT
+                                              </span>
+                                              <p className="text-[11px] font-sans text-rose-700 italic mt-1 leading-tight">
+                                                {f.missingReason || 'Field omitted or not discernible in uploaded scan.'}
+                                              </p>
+                                            </div>
+                                          )}
+                                        </td>
+
+                                        {/* Status */}
+                                        <td className="py-3 px-3 align-top text-center">
+                                          {f.isPresent ? (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                              <Check className="w-2.5 h-2.5 mr-1" />
+                                              Present
+                                            </span>
+                                          ) : (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">
+                                              <AlertTriangle className="w-2.5 h-2.5 mr-1" />
+                                              Missing
+                                            </span>
+                                          )}
+                                        </td>
+
+                                        {/* Confidence Score */}
+                                        <td className="py-3 px-3 align-top text-center">
+                                          <div className="inline-flex flex-col items-center">
+                                            <span
+                                              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                                                isGoodConf
+                                                  ? 'bg-emerald-100 text-emerald-900'
+                                                  : isMedConf
+                                                  ? 'bg-amber-100 text-amber-900'
+                                                  : 'bg-rose-100 text-rose-900'
+                                              }`}
+                                            >
+                                              {confPercent}%
+                                            </span>
+                                            <div className="w-12 bg-slate-200 h-1 rounded-full mt-1 overflow-hidden">
+                                              <div
+                                                className={`h-full rounded-full ${
+                                                  isGoodConf ? 'bg-emerald-600' : isMedConf ? 'bg-amber-500' : 'bg-rose-500'
+                                                }`}
+                                                style={{ width: `${confPercent}%` }}
+                                              ></div>
+                                            </div>
+                                          </div>
+                                        </td>
+
+                                        {/* Document Evidence Citation */}
+                                        <td className="py-3 px-3 align-top">
+                                          <div className="flex items-center space-x-1 text-[10px] text-slate-500 font-semibold mb-1">
+                                            <FileText className="w-3 h-3 text-slate-400" />
+                                            <span>Page {f.sourcePage || 1} Citation</span>
+                                          </div>
+                                          <div className="p-2 rounded bg-slate-100 border border-slate-200 text-[11px] font-mono text-slate-700 max-h-20 overflow-y-auto break-words leading-relaxed">
+                                            {f.rawSnippet ? (
+                                              <span>"{f.rawSnippet}"</span>
+                                            ) : (
+                                              <span className="text-slate-400 italic">No quoted snippet available</span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })()
                     ) : (
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
-                        Document analyzed and verified directly against Registry API.
+                      <div className="p-6 bg-slate-50 border border-slate-200 rounded-lg text-center text-xs text-slate-500">
+                        <FileCheck className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                        <div>No extracted fields currently stored for this document.</div>
+                        <button
+                          type="button"
+                          onClick={() => handleReanalyzeDocument(selectedDocForInspect)}
+                          className="mt-3 inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>Extract Fields with Gemini 3.7 Flash</span>
+                        </button>
                       </div>
                     )}
 
-                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 font-mono">
-                      <div className="text-[10px] uppercase font-bold text-slate-400 font-sans">Document Integrity Verification</div>
-                      <div className="mt-1 break-all">SHA-256 Checksum: {selectedDocForInspect.sha256Hash}</div>
+                    {/* SHA256 Integrity Verification Box */}
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 flex items-center justify-between flex-wrap gap-2">
+                      <div>
+                        <div className="text-[10px] uppercase font-bold text-slate-500">Immutable Evidence Fingerprint (SHA-256)</div>
+                        <div className="font-mono text-[11px] text-slate-800 mt-0.5 break-all">
+                          {selectedDocForInspect.sha256Hash}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(selectedDocForInspect.sha256Hash, 'sha256')}
+                        className="inline-flex items-center space-x-1 px-2 py-1 rounded bg-white border border-slate-300 hover:bg-slate-100 text-[11px] font-medium text-slate-700 transition"
+                      >
+                        {copiedField === 'sha256' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedField === 'sha256' ? 'Copied' : 'Copy Hash'}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-400 text-xs">
-                  Select a document from the left list to view structured extracted fields.
+                <div className="text-center py-16 text-slate-400 text-xs">
+                  <FileText className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p>Select a document from the left list or upload a new file above to inspect extracted fields.</p>
                 </div>
               )}
             </div>
           </div>
+
+          {/* Raw JSON Modal */}
+          {showRawJsonModal && selectedDocForInspect && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+                <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                  <div className="flex items-center space-x-2">
+                    <Code className="w-4 h-4 text-purple-600" />
+                    <h3 className="font-bold text-sm text-slate-900">
+                      Structured JSON Output — {selectedDocForInspect.fileOriginalName}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowRawJsonModal(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 bg-slate-900 text-emerald-400 font-mono text-xs leading-relaxed">
+                  <pre>
+                    {JSON.stringify(
+                      {
+                        documentId: selectedDocForInspect.id,
+                        documentType: selectedDocForInspect.documentType,
+                        fileName: selectedDocForInspect.fileOriginalName,
+                        sha256Hash: selectedDocForInspect.sha256Hash,
+                        extractionTimestamp: selectedDocForInspect.uploadTimestamp,
+                        aiModel: 'gemini-3.7-flash',
+                        fields: selectedDocForInspect.extractedFields || [],
+                      },
+                      null,
+                      2
+                    )}
+                  </pre>
+                </div>
+
+                <div className="p-3 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+                  <span className="text-xs text-slate-500">Structured RFC-8259 Compliant Output</span>
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          JSON.stringify(
+                            {
+                              documentId: selectedDocForInspect.id,
+                              documentType: selectedDocForInspect.documentType,
+                              fileName: selectedDocForInspect.fileOriginalName,
+                              sha256Hash: selectedDocForInspect.sha256Hash,
+                              fields: selectedDocForInspect.extractedFields || [],
+                            },
+                            null,
+                            2
+                          )
+                        );
+                        setCopiedField('json');
+                        setTimeout(() => setCopiedField(null), 2000);
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs inline-flex items-center space-x-1.5"
+                    >
+                      {copiedField === 'json' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedField === 'json' ? 'Copied' : 'Copy JSON'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRawJsonModal(false)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

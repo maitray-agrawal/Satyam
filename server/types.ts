@@ -125,6 +125,8 @@ export interface ExtractedField {
   sourcePage?: number;
   isPresent: boolean;
   rawSnippet?: string;
+  missingReason?: string;
+  category?: 'IDENTITY' | 'COMPLIANCE' | 'STATUTORY' | 'FINANCIAL' | 'TECHNICAL';
 }
 
 export interface Verification {

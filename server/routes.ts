@@ -11,6 +11,7 @@ import {
   getBidFullDetails,
   createBidderAndBid,
   addDocumentToBid,
+  reanalyzeDocumentInDb,
   rerunVerificationAndCompliance,
   saveOfficerDecision,
   getDashboardStats,
@@ -228,6 +229,8 @@ apiRouter.post('/documents/upload', upload.single('file'), async (req: Request, 
         sourcePage: f.sourcePage || 1,
         isPresent: f.isPresent,
         rawSnippet: f.rawSnippet,
+        missingReason: f.missingReason,
+        category: f.category || 'STATUTORY',
       }))
     );
 
@@ -242,6 +245,64 @@ apiRouter.post('/documents/upload', upload.single('file'), async (req: Request, 
     });
   } catch (err: any) {
     console.error('Upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Re-analyze existing document with Gemini
+apiRouter.post('/documents/:id/re-analyze', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { bidId } = req.body;
+
+    if (!bidId) {
+      return res.status(400).json({ error: 'bidId is required' });
+    }
+
+    const bid = await getBidFullDetails(bidId);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+
+    const doc = (bid.documents || []).find((d) => d.id === id);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // Attempt to load file buffer if present on disk
+    let fileBase64: string | undefined;
+    const localFilePath = path.join(UPLOADS_DIR, doc.fileName);
+    if (fs.existsSync(localFilePath)) {
+      const buf = fs.readFileSync(localFilePath);
+      fileBase64 = buf.toString('base64');
+    }
+
+    const extraction = await analyzeDocumentWithGemini(doc, fileBase64, doc.mimeType);
+
+    const reanalyzedFields = extraction.fields.map((f, idx) => ({
+      id: `ref-${idx}`,
+      documentId: id,
+      fieldName: f.fieldName,
+      fieldValue: f.fieldValue,
+      confidence: f.confidence,
+      sourcePage: f.sourcePage || 1,
+      isPresent: f.isPresent,
+      rawSnippet: f.rawSnippet,
+      missingReason: f.missingReason,
+      category: f.category || 'STATUTORY',
+    }));
+
+    const updatedDoc = await reanalyzeDocumentInDb(id, reanalyzedFields);
+    await rerunVerificationAndCompliance(bidId);
+    const updatedBid = await getBidFullDetails(bidId);
+
+    res.json({
+      document: updatedDoc,
+      extraction,
+      updatedBid,
+    });
+  } catch (err: any) {
+    console.error('Re-analysis error:', err);
     res.status(500).json({ error: err.message });
   }
 });
