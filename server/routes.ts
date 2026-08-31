@@ -125,6 +125,18 @@ apiRouter.get('/bids/:id', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/bids/:id/cross-verification', async (req: Request, res: Response) => {
+  try {
+    const bid = await getBidFullDetails(req.params.id);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json(bid.crossVerificationReport || null);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 apiRouter.post('/bids', async (req: Request, res: Response) => {
   try {
     const { tenderId, bidder, quotedAmount } = req.body;

@@ -18,6 +18,7 @@ import {
 } from './types';
 import { evaluateBidCompliance } from './complianceEngine';
 import { VerificationSimulators } from './verificationSimulators';
+import { execute3WayCrossVerification } from './crossVerificationEngine';
 import { generateAIRecommendationWithGemini, generateDeterministicRecommendation } from './gemini';
 
 const DB_DIR = path.join(process.cwd(), 'data');
@@ -1101,6 +1102,19 @@ export async function getBidFullDetails(bidId: string): Promise<Bid | null> {
     bidObj.auditLogs = [];
   }
 
+  // Cross Verification Report
+  if (bidObj.tender && bidObj.tender.requirements) {
+    try {
+      bidObj.crossVerificationReport = execute3WayCrossVerification(
+        bidObj as Bid,
+        bidObj.tender.requirements,
+        bidObj.documents || []
+      );
+    } catch (e) {
+      console.error('Error generating crossVerificationReport:', e);
+    }
+  }
+
   return bidObj as Bid;
 }
 
@@ -1215,39 +1229,21 @@ export async function rerunVerificationAndCompliance(bidId: string): Promise<Bid
   database.run(`DELETE FROM risk_assessments WHERE bidId = '${bidId}'`);
   database.run(`DELETE FROM ai_recommendations WHERE bidId = '${bidId}'`);
 
+  // Execute 3-way cross verification across Document data, Govt Simulator, and Tender requirement
+  const crossReport = execute3WayCrossVerification(bid, reqs, docs);
   const verifs: Verification[] = [];
-  for (const r of reqs) {
-    let govtRes;
-    switch (r.requirementCode) {
-      case 'GST': govtRes = VerificationSimulators.verifyGst(bid.bidder.gstin); break;
-      case 'PAN': govtRes = VerificationSimulators.verifyPan(bid.bidder.pan); break;
-      case 'UDYAM': govtRes = VerificationSimulators.verifyUdyam(bid.bidder.udyamNumber || ''); break;
-      case 'INCOME_TAX': govtRes = VerificationSimulators.verifyIncomeTax(bid.bidder.pan); break;
-      case 'EPFO': govtRes = VerificationSimulators.verifyEpfo(bid.bidder.epfEstCode, bid.bidder.pan); break;
-      case 'ESIC': govtRes = VerificationSimulators.verifyEsic(bid.bidder.esicCode, bid.bidder.pan); break;
-      case 'STARTUP_INDIA': govtRes = VerificationSimulators.verifyStartup(bid.bidder.startupDpiitNumber || ''); break;
-      case 'NSIC': govtRes = VerificationSimulators.verifyNsic(bid.bidder.nsicRegNumber || ''); break;
-      case 'OEM_AUTHORIZATION': govtRes = VerificationSimulators.verifyOem(bid.bidder.oemName); break;
-      case 'MAKE_IN_INDIA': govtRes = VerificationSimulators.verifyMii(bid.bidder.legalName); break;
-      case 'BLACKLISTING': govtRes = VerificationSimulators.verifyBlacklist(bid.bidder.pan, bid.bidder.gstin, bid.bidder.legalName); break;
-      default: govtRes = { status: 'SUCCESS', disclaimer: 'SIMULATED', isSimulated: true, data: { status: 'VALID' }, sourcePortal: 'GeM', queryParameters: {}, timestamp: new Date().toISOString(), message: 'Verified' };
-    }
 
-    let matchStatus = 'MATCH';
-    if (govtRes.status === 'NOT_FOUND') matchStatus = 'MISSING';
-    else if (govtRes.data?.status === 'CANCELLED' || govtRes.data?.status === 'EXPIRED') matchStatus = 'INVALID';
-    else if (govtRes.data?.isBlacklisted) matchStatus = 'MISMATCH';
-
+  for (const item of crossReport.items) {
     const v: Verification = {
-      id: `ver-${bid.id}-${r.requirementCode}-${Date.now()}`,
+      id: `ver-${bid.id}-${item.requirementCode}-${Date.now()}`,
       bidId: bid.id,
-      requirementCode: r.requirementCode,
-      apiEndpoint: `/api/verify/${r.requirementCode.toLowerCase().replace('_', '-')}`,
-      status: govtRes.status === 'SUCCESS' ? 'SUCCESS' : 'FAILED',
-      verifiedDataJson: govtRes.data || {},
-      matchStatus: matchStatus as any,
-      evidenceDetails: govtRes.message,
-      apiTimestamp: govtRes.timestamp,
+      requirementCode: item.requirementCode,
+      apiEndpoint: item.portalEvidence.endpoint,
+      status: item.matchStatus === 'INVALID' ? 'FAILED' : 'SUCCESS',
+      verifiedDataJson: item.portalEvidence.verifiedKeyValues,
+      matchStatus: item.matchStatus,
+      evidenceDetails: item.exactEvidenceSummary,
+      apiTimestamp: item.portalEvidence.timestamp,
       isSimulated: true,
     };
     verifs.push(v);

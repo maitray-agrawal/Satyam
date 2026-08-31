@@ -21,10 +21,93 @@ export type RequirementCode =
 
 export type ComplianceStatus = 'COMPLIANT' | 'NON_COMPLIANT' | 'REVIEW' | 'EXEMPTED' | 'MISSING';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-export type VerificationMatchStatus = 'MATCH' | 'MISMATCH' | 'MISSING' | 'INVALID' | 'EXEMPTED';
+export type MatchStatus =
+  | 'MATCH'
+  | 'MISMATCH'
+  | 'MISSING'
+  | 'INVALID'
+  | 'EXPIRED'
+  | 'REQUIRES_MANUAL_REVIEW';
+export type VerificationMatchStatus = MatchStatus;
 export type BidStatus = 'SUBMITTED' | 'UNDER_REVIEW' | 'SHORTFALL_RAISED' | 'CLARIFICATION_RECEIVED' | 'DECIDED';
 export type TechnicalStatus = 'PENDING_VERIFICATION' | 'QUALIFIED' | 'DISQUALIFIED' | 'SHORTFALL_PENDING';
 export type OfficerDecisionType = 'APPROVE' | 'REJECT' | 'REQUEST_CLARIFICATION' | 'HOLD';
+
+export interface ComparisonFieldItem {
+  fieldName: string;
+  documentValue: string;
+  portalValue: string;
+  tenderCondition: string;
+  status: MatchStatus;
+  notes?: string;
+}
+
+export interface CrossVerificationResultItem {
+  id: string;
+  bidId: string;
+  requirementCode: RequirementCode;
+  requirementName: string;
+  matchStatus: MatchStatus;
+  complianceStatus: ComplianceStatus;
+  isRequired: boolean;
+  weight: number;
+  documentEvidence: {
+    hasDocument: boolean;
+    fileName?: string;
+    documentType?: string;
+    sha256Hash?: string;
+    sourcePage?: number;
+    confidence?: number;
+    rawSnippet?: string;
+    extractedSummary: string;
+    extractedKeyValues: Record<string, string>;
+  };
+  portalEvidence: {
+    portalName: string;
+    endpoint: string;
+    queryParameters: Record<string, any>;
+    timestamp: string;
+    isSimulated: boolean;
+    portalStatus: string;
+    portalSummary: string;
+    verifiedKeyValues: Record<string, any>;
+  };
+  tenderRequirement: {
+    requirementCode: RequirementCode;
+    requirementName: string;
+    isRequired: boolean;
+    weight: number;
+    minThreshold?: string | number;
+    customRuleDescription: string;
+    issuingAuthority: string;
+    formatRequired: string;
+  };
+  comparisonMatrix: ComparisonFieldItem[];
+  exactEvidenceSummary: string;
+  deterministicRule: string;
+  issues: string[];
+  criticalFlag?: string;
+}
+
+export interface CrossVerificationReport {
+  bidId: string;
+  bidNumber: string;
+  bidderLegalName: string;
+  tenderTitle: string;
+  tenderId: string;
+  evaluatedAt: string;
+  summary: {
+    totalRequirements: number;
+    matchedCount: number;
+    mismatchedCount: number;
+    missingCount: number;
+    invalidCount: number;
+    expiredCount: number;
+    reviewCount: number;
+    overallScore: number;
+  };
+  items: CrossVerificationResultItem[];
+}
 
 export interface User {
   id: string;
@@ -216,6 +299,7 @@ export interface Bid {
   riskAssessment?: RiskAssessment;
   aiRecommendation?: AIRecommendation;
   officerDecision?: OfficerDecision;
+  crossVerificationReport?: CrossVerificationReport;
   auditLogs?: AuditLog[];
 }
 

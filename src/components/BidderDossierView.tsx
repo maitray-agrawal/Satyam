@@ -82,6 +82,13 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
   const [showRawJsonModal, setShowRawJsonModal] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
+  // Cross-Verification State
+  const [crossVerificationFilter, setCrossVerificationFilter] = useState<
+    'ALL' | 'MATCH' | 'MISMATCH' | 'MISSING' | 'INVALID' | 'EXPIRED' | 'REQUIRES_MANUAL_REVIEW'
+  >('ALL');
+  const [expandedXVerReq, setExpandedXVerReq] = useState<string | null>(null);
+  const [copiedEvidenceId, setCopiedEvidenceId] = useState<string | null>(null);
+
   // Keep selected document in sync when bid updates
   useEffect(() => {
     if (bid.documents && bid.documents.length > 0) {
@@ -1382,129 +1389,636 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* SUBTAB 3: GOVT REGISTRY CROSS-CHECKS */}
+      {/* SUBTAB 3: 3-WAY CROSS-VERIFICATION & GOVT REGISTRY MATRIX */}
       {/* ========================================================================= */}
       {activeSubTab === 'verifications' && (
         <div className="space-y-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 flex items-start space-x-3">
-            <Database className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold">SIMULATED GOVERNMENT REGISTRY INTEGRATION ENVIRONMENT:</span>
-              <p className="mt-0.5 text-amber-800 leading-relaxed">
-                The verification responses below simulate direct portal integration with GST Common Portal (GSTN), Income Tax e-Filing, MSME Udyam, EPFO, ESIC, DPIIT, and Central Public Procurement Portal (CPPP) Debarment Repository.
-              </p>
+          {/* Top Explanatory Banner */}
+          <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start space-x-3.5">
+              <div className="p-2.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-xl">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base font-black tracking-tight">
+                    3-Way Statutory Cross-Verification Engine
+                  </h3>
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+                    DETERMINISTIC RECONCILIATION
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                  Rigorous tri-party reconciliation across: <span className="text-purple-300 font-semibold">(1) Gemini 3.7 Extracted Document Evidence</span>, <span className="text-amber-300 font-semibold">(2) Simulated Government Portal Records</span> (GSTN, ITD, Udyam, EPFO, ESIC, DPIIT, NSIC, OEM, Debarment Repo), and <span className="text-blue-300 font-semibold">(3) Tender Requirement Conditions</span>.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleReVerify}
+              disabled={isReVerifying}
+              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-md flex items-center space-x-2 shrink-0 disabled:opacity-50"
+            >
+              <RotateCcw className={`w-4 h-4 ${isReVerifying ? 'animate-spin' : ''}`} />
+              <span>{isReVerifying ? 'Re-Verifying...' : 'Re-Run All 10 APIs'}</span>
+            </button>
+          </div>
+
+          {/* Status Metrics Bar */}
+          {(() => {
+            const items = bid.crossVerificationReport?.items || [];
+            const matchCount = items.filter((i) => i.matchStatus === 'MATCH').length;
+            const mismatchCount = items.filter((i) => i.matchStatus === 'MISMATCH').length;
+            const missingCount = items.filter((i) => i.matchStatus === 'MISSING').length;
+            const invalidCount = items.filter((i) => i.matchStatus === 'INVALID').length;
+            const expiredCount = items.filter((i) => i.matchStatus === 'EXPIRED').length;
+            const reviewCount = items.filter((i) => i.matchStatus === 'REQUIRES_MANUAL_REVIEW').length;
+
+            return (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCrossVerificationFilter('MATCH')}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    crossVerificationFilter === 'MATCH'
+                      ? 'bg-emerald-50 border-emerald-500 shadow-xs ring-2 ring-emerald-400/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-emerald-700 font-bold uppercase tracking-wider">
+                    <span>MATCH</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  </div>
+                  <div className="text-2xl font-black font-mono text-emerald-900 mt-1">{matchCount}</div>
+                  <div className="text-[10px] text-emerald-600 mt-0.5">Verified Compliant</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCrossVerificationFilter('MISMATCH')}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    crossVerificationFilter === 'MISMATCH'
+                      ? 'bg-rose-50 border-rose-500 shadow-xs ring-2 ring-rose-400/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-rose-700 font-bold uppercase tracking-wider">
+                    <span>MISMATCH</span>
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                  </div>
+                  <div className="text-2xl font-black font-mono text-rose-900 mt-1">{mismatchCount}</div>
+                  <div className="text-[10px] text-rose-600 mt-0.5">Discrepancy Found</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCrossVerificationFilter('MISSING')}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    crossVerificationFilter === 'MISSING'
+                      ? 'bg-slate-100 border-slate-500 shadow-xs ring-2 ring-slate-400/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-slate-700 font-bold uppercase tracking-wider">
+                    <span>MISSING</span>
+                    <X className="w-3.5 h-3.5 text-slate-600" />
+                  </div>
+                  <div className="text-2xl font-black font-mono text-slate-900 mt-1">{missingCount}</div>
+                  <div className="text-[10px] text-slate-600 mt-0.5">Doc Not Uploaded</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCrossVerificationFilter('INVALID')}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    crossVerificationFilter === 'INVALID'
+                      ? 'bg-red-50 border-red-600 shadow-xs ring-2 ring-red-400/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-red-700 font-bold uppercase tracking-wider">
+                    <span>INVALID</span>
+                    <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                  </div>
+                  <div className="text-2xl font-black font-mono text-red-900 mt-1">{invalidCount}</div>
+                  <div className="text-[10px] text-red-600 mt-0.5">Debarred / Cancelled</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCrossVerificationFilter('EXPIRED')}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    crossVerificationFilter === 'EXPIRED'
+                      ? 'bg-amber-50 border-amber-500 shadow-xs ring-2 ring-amber-400/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-amber-700 font-bold uppercase tracking-wider">
+                    <span>EXPIRED</span>
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  </div>
+                  <div className="text-2xl font-black font-mono text-amber-900 mt-1">{expiredCount}</div>
+                  <div className="text-[10px] text-amber-600 mt-0.5">Lapsed Validity</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCrossVerificationFilter('REQUIRES_MANUAL_REVIEW')}
+                  className={`p-3 rounded-xl border text-left transition ${
+                    crossVerificationFilter === 'REQUIRES_MANUAL_REVIEW'
+                      ? 'bg-indigo-50 border-indigo-500 shadow-xs ring-2 ring-indigo-400/20'
+                      : 'bg-white border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs text-indigo-700 font-bold uppercase tracking-wider">
+                    <span>MANUAL REVIEW</span>
+                    <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <div className="text-2xl font-black font-mono text-indigo-900 mt-1">{reviewCount}</div>
+                  <div className="text-[10px] text-indigo-600 mt-0.5">Officer Scrutiny</div>
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Filter Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-slate-700">Filter By Reconciliation Result:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    'ALL',
+                    'MATCH',
+                    'MISMATCH',
+                    'MISSING',
+                    'INVALID',
+                    'EXPIRED',
+                    'REQUIRES_MANUAL_REVIEW',
+                  ] as const
+                ).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setCrossVerificationFilter(f)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                      crossVerificationFilter === f
+                        ? 'bg-slate-900 text-white shadow-2xs'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-xs text-slate-500 font-mono">
+              Displaying{' '}
+              <span className="font-bold text-slate-900">
+                {(bid.crossVerificationReport?.items || []).filter(
+                  (i) => crossVerificationFilter === 'ALL' || i.matchStatus === crossVerificationFilter
+                ).length}
+              </span>{' '}
+              of {(bid.crossVerificationReport?.items || []).length} Statutory Checks
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">Government Portal Cross-Verification Matrix</h3>
-              <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono font-bold">
-                {bid.verifications?.length || 0} APIs Queried
-              </span>
-            </div>
+          {/* 3-Way Cross-Verification Cards List */}
+          <div className="space-y-5">
+            {(() => {
+              const allItems = bid.crossVerificationReport?.items || [];
+              const filtered = allItems.filter(
+                (i) => crossVerificationFilter === 'ALL' || i.matchStatus === crossVerificationFilter
+              );
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
-                  <tr>
-                    <th className="py-3 px-4">Statutory Registry / Portal</th>
-                    <th className="py-3 px-4">Bidder Claim / Identifier</th>
-                    <th className="py-3 px-4">Simulated Portal Record</th>
-                    <th className="py-3 px-4 text-center">Match Status</th>
-                    <th className="py-3 px-4">Verification Evidence & Notes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {bid.verifications && bid.verifications.length > 0 ? (
-                    bid.verifications.map((v) => {
-                      const isMatch = v.matchStatus === 'MATCH';
-                      const isMismatch = v.matchStatus === 'MISMATCH' || v.matchStatus === 'INVALID';
-                      return (
-                        <tr key={v.id} className="hover:bg-slate-50/80">
-                          <td className="py-3.5 px-4 font-bold text-slate-900">
-                            <div className="flex items-center space-x-1.5">
-                              <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                              <span>{v.requirementCode}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                              {v.apiEndpoint}
+              if (filtered.length === 0) {
+                return (
+                  <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 shadow-2xs">
+                    <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <h4 className="text-sm font-bold text-slate-700">No verification checks match the filter</h4>
+                    <p className="text-xs text-slate-400 mt-1">Try switching filter to "ALL".</p>
+                    <button
+                      type="button"
+                      onClick={() => setCrossVerificationFilter('ALL')}
+                      className="mt-3 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg"
+                    >
+                      Reset Filter
+                    </button>
+                  </div>
+                );
+              }
+
+              return filtered.map((item) => {
+                const isExpanded = expandedXVerReq === item.requirementCode || expandedXVerReq === null;
+                const status = item.matchStatus;
+
+                // Color configuration
+                const statusStyles: Record<
+                  string,
+                  { badge: string; border: string; icon: any; title: string }
+                > = {
+                  MATCH: {
+                    badge: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+                    border: 'border-emerald-200',
+                    icon: Check,
+                    title: 'MATCH: Fully Reconciled & Valid',
+                  },
+                  MISMATCH: {
+                    badge: 'bg-rose-100 text-rose-900 border-rose-300',
+                    border: 'border-rose-200',
+                    icon: AlertTriangle,
+                    title: 'MISMATCH: Data Contradiction Detected',
+                  },
+                  MISSING: {
+                    badge: 'bg-slate-100 text-slate-800 border-slate-300',
+                    border: 'border-slate-200',
+                    icon: X,
+                    title: 'MISSING: Required Document Not Submitted',
+                  },
+                  INVALID: {
+                    badge: 'bg-red-100 text-red-900 border-red-400 font-black',
+                    border: 'border-red-300 ring-1 ring-red-200',
+                    icon: ShieldAlert,
+                    title: 'INVALID: Debarred / Suspended / Tax Default',
+                  },
+                  EXPIRED: {
+                    badge: 'bg-amber-100 text-amber-900 border-amber-300',
+                    border: 'border-amber-200',
+                    icon: Clock,
+                    title: 'EXPIRED: Validity Expired Prior to Tender Date',
+                  },
+                  REQUIRES_MANUAL_REVIEW: {
+                    badge: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+                    border: 'border-indigo-200',
+                    icon: Eye,
+                    title: 'REQUIRES_MANUAL_REVIEW: Officer Judgment Needed',
+                  },
+                };
+
+                const currentStyle = statusStyles[status] || statusStyles.MATCH;
+                const StatusIcon = currentStyle.icon;
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`bg-white rounded-2xl border ${currentStyle.border} shadow-xs overflow-hidden transition-all`}
+                  >
+                    {/* Header */}
+                    <div className="p-4 sm:p-5 border-b border-slate-200/80 bg-slate-50/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                          <Building2 className="w-5 h-5 text-slate-700" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-bold text-sm text-slate-900">
+                              {item.requirementName} ({item.requirementCode})
+                            </h4>
+                            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold">
+                              {item.weight} pts
                             </span>
-                          </td>
+                            {item.isRequired && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                MANDATORY
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-500 mt-0.5 block">
+                            Target Registry: {item.portalEvidence.portalName} ({item.portalEvidence.endpoint})
+                          </span>
+                        </div>
+                      </div>
 
-                          <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">
-                            {v.requirementCode === 'GST'
-                              ? bid.bidder?.gstin
-                              : v.requirementCode === 'PAN'
-                              ? bid.bidder?.pan
-                              : v.requirementCode === 'UDYAM'
-                              ? bid.bidder?.udyamNumber || 'N/A'
-                              : v.requirementCode === 'MAKE_IN_INDIA'
-                              ? `${bid.bidder?.localContentPercentage}% Claimed`
-                              : v.requirementCode === 'OEM_AUTHORIZATION'
-                              ? bid.bidder?.oemName || 'OEM Authorized'
-                              : bid.bidder?.legalName}
-                          </td>
+                      <div className="flex items-center space-x-3 self-end sm:self-auto">
+                        <span
+                          className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-bold border ${currentStyle.badge}`}
+                        >
+                          <StatusIcon className="w-3.5 h-3.5" />
+                          <span>{item.matchStatus.replace(/_/g, ' ')}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedXVerReq(
+                              expandedXVerReq === item.requirementCode ? 'none' : item.requirementCode
+                            )
+                          }
+                          className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition"
+                        >
+                          <ChevronRight
+                            className={`w-4 h-4 transition-transform ${
+                              expandedXVerReq === item.requirementCode || expandedXVerReq === null
+                                ? 'rotate-90'
+                                : ''
+                            }`}
+                          />
+                        </button>
+                      </div>
+                    </div>
 
-                          <td className="py-3.5 px-4 font-mono text-[11px]">
-                            {v.verifiedDataJson?.legalName ? (
-                              <div>
-                                <span className="font-bold text-slate-900">{v.verifiedDataJson.legalName}</span>
-                                <div className="text-[10px] text-slate-500 mt-0.5">
-                                  Status: <span className="font-bold">{v.verifiedDataJson.status}</span>
-                                  {v.verifiedDataJson.localContentVerified && (
-                                    <span> • Verified MII: {v.verifiedDataJson.localContentVerified}%</span>
-                                  )}
-                                  {v.verifiedDataJson.isBlacklisted && (
-                                    <span className="text-rose-700 font-bold"> • DEBARRED</span>
-                                  )}
+                    {/* 3-Layer Comparison Columns */}
+                    <div className="p-5 space-y-5">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Layer 1: Gemini Extracted Document */}
+                        <div className="rounded-xl border border-purple-200 bg-purple-50/30 p-4 flex flex-col justify-between space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between pb-2 border-b border-purple-200/80">
+                              <div className="flex items-center space-x-1.5 text-purple-900 font-bold text-xs">
+                                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                                <span>Layer 1: Gemini OCR Extraction</span>
+                              </div>
+                              {item.documentEvidence.hasDocument ? (
+                                <span className="bg-purple-100 text-purple-800 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
+                                  {item.documentEvidence.confidence}% Conf
+                                </span>
+                              ) : (
+                                <span className="bg-slate-200 text-slate-600 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
+                                  No Doc
+                                </span>
+                              )}
+                            </div>
+
+                            {item.documentEvidence.hasDocument ? (
+                              <div className="mt-3 space-y-2 text-xs">
+                                <div className="text-slate-700">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                                    Source Document
+                                  </span>
+                                  <span className="font-semibold text-slate-900 break-all">
+                                    {item.documentEvidence.fileName}
+                                  </span>
+                                  <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                    Page {item.documentEvidence.sourcePage} • SHA-256:{' '}
+                                    {item.documentEvidence.sha256Hash?.substring(0, 10)}...
+                                  </div>
+                                </div>
+
+                                {item.documentEvidence.rawSnippet && (
+                                  <div className="p-2.5 bg-white rounded-lg border border-purple-200 text-[11px] text-purple-950 italic">
+                                    "{item.documentEvidence.rawSnippet}"
+                                  </div>
+                                )}
+
+                                <div className="pt-2">
+                                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                                    Extracted Key Attributes
+                                  </span>
+                                  <div className="flex flex-wrap gap-1 max-h-28 overflow-y-auto">
+                                    {Object.entries(item.documentEvidence.extractedKeyValues).map(
+                                      ([k, val]) => (
+                                        <span
+                                          key={k}
+                                          className="inline-block bg-white text-slate-800 border border-slate-200 px-1.5 py-0.5 rounded text-[10px] font-mono"
+                                        >
+                                          <strong className="text-purple-700">{k}:</strong> {val}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-slate-500 font-sans">
-                                {JSON.stringify(v.verifiedDataJson).substring(0, 60)}...
-                              </span>
+                              <div className="mt-4 p-3 bg-white/60 rounded-lg border border-slate-200 text-center text-xs text-slate-400">
+                                <FileText className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                                No document uploaded for this statutory requirement.
+                              </div>
                             )}
-                          </td>
+                          </div>
+                          <span className="text-[10px] text-purple-700 font-medium">
+                            Extracted via Gemini 3.7 Flash
+                          </span>
+                        </div>
 
-                          <td className="py-3.5 px-4 text-center">
-                            <span
-                              className={`inline-flex items-center px-2.5 py-1 rounded text-xs font-bold ${
-                                isMatch
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                  : isMismatch
-                                  ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                                  : 'bg-amber-100 text-amber-800 border border-amber-300'
-                              }`}
-                            >
-                              {isMatch ? (
-                                <Check className="w-3 h-3 mr-1" />
-                              ) : (
-                                <X className="w-3 h-3 mr-1" />
-                              )}
-                              {v.matchStatus}
-                            </span>
-                          </td>
+                        {/* Layer 2: Simulated Government Portal */}
+                        <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-4 flex flex-col justify-between space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between pb-2 border-b border-amber-200/80">
+                              <div className="flex items-center space-x-1.5 text-amber-900 font-bold text-xs">
+                                <Database className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Layer 2: Simulated Portal Record</span>
+                              </div>
+                              <span
+                                className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                                  item.portalEvidence.portalStatus === 'ACTIVE' ||
+                                  item.portalEvidence.portalStatus === 'VALID' ||
+                                  item.portalEvidence.portalStatus === 'ACTIVE_VERIFIED' ||
+                                  item.portalEvidence.portalStatus === 'ACTIVE_COMPLIANT'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : item.portalEvidence.portalStatus === 'EXPIRED'
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {item.portalEvidence.portalStatus}
+                              </span>
+                            </div>
 
-                          <td className="py-3.5 px-4 text-slate-700 text-xs">
-                            <p>{v.evidenceDetails}</p>
-                            <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
-                              Synced: {new Date(v.apiTimestamp).toLocaleTimeString()}
+                            <div className="mt-3 space-y-2 text-xs">
+                              <div>
+                                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                                  Registry Source
+                                </span>
+                                <span className="font-semibold text-slate-900">
+                                  {item.portalEvidence.portalName}
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-mono block">
+                                  {item.portalEvidence.endpoint}
+                                </span>
+                              </div>
+
+                              <div className="p-2.5 bg-white rounded-lg border border-amber-200 text-[11px] text-slate-800">
+                                <p className="font-medium text-amber-950">{item.portalEvidence.portalSummary}</p>
+                              </div>
+
+                              <div className="pt-2">
+                                <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                                  Verified Registry Fields
+                                </span>
+                                <div className="p-2 bg-white rounded-lg border border-amber-200 font-mono text-[10px] max-h-28 overflow-y-auto space-y-1 text-slate-700">
+                                  {Object.entries(item.portalEvidence.verifiedKeyValues).map(([k, val]) => (
+                                    <div key={k} className="flex justify-between border-b border-slate-100 pb-0.5">
+                                      <span className="text-slate-500">{k}:</span>
+                                      <span className="font-bold text-slate-800 text-right truncate max-w-[150px]">
+                                        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-amber-700 font-mono">
+                            Synced: {new Date(item.portalEvidence.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+
+                        {/* Layer 3: Tender Requirement */}
+                        <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 flex flex-col justify-between space-y-3">
+                          <div>
+                            <div className="flex items-center justify-between pb-2 border-b border-blue-200/80">
+                              <div className="flex items-center space-x-1.5 text-blue-900 font-bold text-xs">
+                                <Scale className="w-3.5 h-3.5 text-blue-600" />
+                                <span>Layer 3: Tender Requirement</span>
+                              </div>
+                              <span className="bg-blue-100 text-blue-800 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
+                                GFR 2017 / GeM
+                              </span>
+                            </div>
+
+                            <div className="mt-3 space-y-2.5 text-xs text-slate-700">
+                              <div>
+                                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                                  Statutory Rule Specification
+                                </span>
+                                <p className="text-xs text-slate-900 font-medium mt-0.5 leading-relaxed">
+                                  {item.deterministicRule}
+                                </p>
+                              </div>
+
+                              <div className="p-2.5 bg-white rounded-lg border border-blue-200 space-y-1 text-[11px]">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">Issuing Authority:</span>
+                                  <span className="font-bold text-slate-800">{item.tenderRequirement.issuingAuthority}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500">Required Format:</span>
+                                  <span className="font-bold text-slate-800">{item.tenderRequirement.formatRequired}</span>
+                                </div>
+                                {item.tenderRequirement.minThreshold && (
+                                  <div className="flex justify-between text-blue-900 font-bold">
+                                    <span>Min Threshold:</span>
+                                    <span>{item.tenderRequirement.minThreshold}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-blue-700 font-medium">
+                            Tender Condition Weight: {item.weight} pts
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Field-by-Field Comparison Matrix */}
+                      {item.comparisonMatrix && item.comparisonMatrix.length > 0 && (
+                        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                          <div className="bg-slate-100 px-4 py-2 text-xs font-bold text-slate-800 border-b border-slate-200 flex items-center justify-between">
+                            <span>Field-by-Field Reconciliation Matrix</span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {item.comparisonMatrix.length} Parameters Evaluated
                             </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="text-center py-6 text-slate-400">
-                        No verifications executed. Click "Re-Run Verification" above.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-[10px] border-b border-slate-200">
+                                <tr>
+                                  <th className="py-2.5 px-3">Field Parameter</th>
+                                  <th className="py-2.5 px-3 text-purple-900">1. Document Extracted</th>
+                                  <th className="py-2.5 px-3 text-amber-900">2. Portal Simulated Record</th>
+                                  <th className="py-2.5 px-3 text-blue-900">3. Tender Requirement</th>
+                                  <th className="py-2.5 px-3 text-center">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200 font-mono text-[11px]">
+                                {item.comparisonMatrix.map((f, fIdx) => {
+                                  const isM = f.status === 'MATCH';
+                                  const isMis = f.status === 'MISMATCH';
+                                  const isInv = f.status === 'INVALID';
+                                  const isExp = f.status === 'EXPIRED';
+
+                                  return (
+                                    <tr key={fIdx} className="hover:bg-slate-50/70">
+                                      <td className="py-2 px-3 font-sans font-bold text-slate-800">
+                                        {f.fieldName}
+                                      </td>
+                                      <td className="py-2 px-3 text-purple-950 font-semibold">
+                                        {f.documentValue}
+                                      </td>
+                                      <td className="py-2 px-3 text-amber-950 font-semibold">
+                                        {f.portalValue}
+                                      </td>
+                                      <td className="py-2 px-3 font-sans text-slate-600 text-[10px]">
+                                        {f.tenderCondition}
+                                      </td>
+                                      <td className="py-2 px-3 text-center">
+                                        <span
+                                          className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                                            isM
+                                              ? 'bg-emerald-100 text-emerald-800'
+                                              : isMis
+                                              ? 'bg-rose-100 text-rose-800'
+                                              : isInv
+                                              ? 'bg-red-100 text-red-800 font-black'
+                                              : isExp
+                                              ? 'bg-amber-100 text-amber-800'
+                                              : 'bg-indigo-100 text-indigo-800'
+                                          }`}
+                                        >
+                                          {f.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Exact Synthesized Evidence Box */}
+                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-slate-600" />
+                            <span>Synthesized Exact Evidence & Statutory Citation:</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(item.exactEvidenceSummary);
+                              setCopiedEvidenceId(item.id);
+                              setTimeout(() => setCopiedEvidenceId(null), 2000);
+                            }}
+                            className="text-[11px] text-purple-700 hover:text-purple-900 font-bold flex items-center space-x-1 bg-white px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition"
+                          >
+                            {copiedEvidenceId === item.id ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy Evidence</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <pre className="text-[11px] text-slate-700 font-mono whitespace-pre-wrap bg-white p-3 rounded-lg border border-slate-200 leading-relaxed">
+                          {item.exactEvidenceSummary}
+                        </pre>
+
+                        {item.issues && item.issues.length > 0 && (
+                          <div className="pt-2">
+                            <div className="text-[11px] font-bold text-rose-700 mb-1 flex items-center space-x-1">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Issues Detected During Cross-Verification:</span>
+                            </div>
+                            <ul className="list-disc pl-5 text-xs text-rose-800 space-y-0.5">
+                              {item.issues.map((iss, iIdx) => (
+                                <li key={iIdx}>{iss}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </div>
       )}
