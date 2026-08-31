@@ -1067,6 +1067,8 @@ export async function getBidFullDetails(bidId: string): Promise<Bid | null> {
       recObj.missingRequirements = [];
       recObj.recommendedActions = [];
     }
+    recObj.reason = recObj.reason || recObj.reasoningText || '';
+    recObj.reasoningText = recObj.reason;
     bidObj.aiRecommendation = recObj as AIRecommendation;
   }
 

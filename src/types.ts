@@ -245,7 +245,8 @@ export interface AIRecommendation {
   id: string;
   bidId: string;
   recommendation: 'COMPLIANT' | 'MANUAL_REVIEW' | 'NON_COMPLIANT';
-  reasoningText: string;
+  reason: string;
+  reasoningText?: string;
   criticalIssues: string[];
   missingRequirements: string[];
   recommendedActions: string[];

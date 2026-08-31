@@ -412,19 +412,38 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               <span className="bg-blue-50 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded border border-blue-200">
                 TENDER: {bid.tender?.tenderId}
               </span>
-              {bid.officerDecision?.decision && (
-                <span
-                  className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
-                    bid.officerDecision.decision === 'APPROVE'
-                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                      : bid.officerDecision.decision === 'REJECT'
-                      ? 'bg-rose-100 text-rose-900 border-rose-300'
-                      : 'bg-amber-100 text-amber-900 border-amber-300'
-                  }`}
-                >
-                  OFFICER STATUS: {bid.officerDecision.decision}
+              {/* Separate AI Recommendation Badge */}
+              <span
+                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border flex items-center space-x-1 ${
+                  bid.aiRecommendation?.recommendation === 'COMPLIANT'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : bid.aiRecommendation?.recommendation === 'NON_COMPLIANT'
+                    ? 'bg-rose-100 text-rose-900 border-rose-300'
+                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                }`}
+              >
+                <Sparkles className="w-2.5 h-2.5 mr-0.5" />
+                <span>AI ADVISORY: {bid.aiRecommendation?.recommendation || 'PENDING'}</span>
+              </span>
+              {/* Separate Officer Final Decision Badge */}
+              <span
+                className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border flex items-center space-x-1 ${
+                  bid.officerDecision?.decision === 'APPROVE'
+                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                    : bid.officerDecision?.decision === 'REJECT'
+                    ? 'bg-rose-100 text-rose-900 border-rose-300'
+                    : bid.officerDecision?.decision === 'REQUEST_CLARIFICATION'
+                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                    : bid.officerDecision?.decision === 'HOLD'
+                    ? 'bg-purple-100 text-purple-900 border-purple-300'
+                    : 'bg-slate-100 text-slate-700 border-slate-300'
+                }`}
+              >
+                <Award className="w-2.5 h-2.5 mr-0.5" />
+                <span>
+                  OFFICER FINAL DECISION: {bid.officerDecision?.decision || 'PENDING'}
                 </span>
-              )}
+              </span>
             </div>
 
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">{bid.bidder?.legalName}</h1>
@@ -615,7 +634,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
           )}
 
           {/* Quick Metrics Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
               <div className="text-xs font-bold text-slate-500 uppercase">Statutory Checks Summary</div>
               <div className="mt-3 space-y-2 text-xs">
@@ -656,13 +675,29 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-              <div className="text-xs font-bold text-slate-500 uppercase">AI Recommendation Synopsis</div>
-              <div className="mt-2">
-                <div className="flex items-center space-x-2">
+          {/* Clearly Display: AI Recommendation vs Officer Final Decision (Separated) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Panel 1: AI Recommendation (Decision Support Layer) */}
+            <div className="bg-white rounded-xl border border-purple-200 p-5 shadow-xs relative flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-purple-100">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-purple-100 text-purple-700 rounded-lg">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wide">
+                        AI Recommendation (Advisory Only)
+                      </h3>
+                      <p className="text-[10px] text-slate-500">
+                        Evaluated strictly from 4 deterministic inputs
+                      </p>
+                    </div>
+                  </div>
                   <span
-                    className={`text-xs font-black uppercase px-2.5 py-1 rounded border ${
+                    className={`text-[11px] font-black uppercase px-2.5 py-1 rounded border ${
                       bid.aiRecommendation?.recommendation === 'COMPLIANT'
                         ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
                         : bid.aiRecommendation?.recommendation === 'NON_COMPLIANT'
@@ -670,13 +705,156 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                         : 'bg-amber-100 text-amber-900 border-amber-300'
                     }`}
                   >
-                    {bid.aiRecommendation?.recommendation || 'EVALUATING'}
+                    {bid.aiRecommendation?.recommendation || 'PENDING'}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Gemini Flash</span>
                 </div>
-                <p className="text-[11px] text-slate-600 mt-2 line-clamp-2 leading-relaxed">
-                  {bid.aiRecommendation?.reasoningText}
+
+                <p className="text-xs text-slate-800 bg-purple-50/40 p-3 rounded-lg border border-purple-100 leading-relaxed font-medium">
+                  {bid.aiRecommendation?.reason || bid.aiRecommendation?.reasoningText || 'Pending evaluation.'}
                 </p>
+
+                {/* Critical Issues & Missing Requirements */}
+                <div className="mt-3 space-y-2 text-xs">
+                  {bid.aiRecommendation?.criticalIssues && bid.aiRecommendation.criticalIssues.length > 0 && (
+                    <div className="p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-rose-900">
+                      <div className="text-[10px] font-bold uppercase flex items-center space-x-1 mb-1 text-rose-700">
+                        <AlertTriangle className="w-3 h-3 text-rose-600 mr-1" /> Critical Discrepancies
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                        {bid.aiRecommendation.criticalIssues.map((ci, idx) => (
+                          <li key={idx}>{ci}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {bid.aiRecommendation?.missingRequirements && bid.aiRecommendation.missingRequirements.length > 0 && (
+                    <div className="p-2.5 bg-amber-50 rounded-lg border border-amber-200 text-amber-900">
+                      <div className="text-[10px] font-bold uppercase flex items-center space-x-1 mb-1 text-amber-700">
+                        <FileText className="w-3 h-3 text-amber-600 mr-1" /> Missing Requirements
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                        {bid.aiRecommendation.missingRequirements.map((mr, idx) => (
+                          <li key={idx}>{mr}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {bid.aiRecommendation?.recommendedActions && bid.aiRecommendation.recommendedActions.length > 0 && (
+                    <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-slate-700">
+                      <div className="text-[10px] font-bold uppercase flex items-center space-x-1 mb-1 text-slate-600">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 mr-1" /> Recommended Actions
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                        {bid.aiRecommendation.recommendedActions.slice(0, 2).map((ra, idx) => (
+                          <li key={idx}>{ra}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-purple-100 flex items-center justify-between text-[10px]">
+                <span className="text-slate-500 italic">
+                  Deterministic Score ({bid.overallScore}/100) is immutable and not altered by AI.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab('ai-copilot')}
+                  className="text-purple-700 hover:text-purple-900 font-bold hover:underline"
+                >
+                  View Full Advisory →
+                </button>
+              </div>
+            </div>
+
+            {/* Panel 2: Officer Final Decision (Statutory Authority) */}
+            <div className="bg-white rounded-xl border border-slate-300 p-5 shadow-xs flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-1.5 bg-slate-900 text-white rounded-lg">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-900 tracking-wide">
+                        Procurement Officer Final Decision
+                      </h3>
+                      <p className="text-[10px] text-slate-500">
+                        Statutory Authority: GeM GTC / GFR Rule 144
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[11px] font-black uppercase px-2.5 py-1 rounded border ${
+                      bid.officerDecision?.decision === 'APPROVE'
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                        : bid.officerDecision?.decision === 'REJECT'
+                        ? 'bg-rose-100 text-rose-900 border-rose-300'
+                        : bid.officerDecision?.decision === 'REQUEST_CLARIFICATION'
+                        ? 'bg-amber-100 text-amber-900 border-amber-300'
+                        : bid.officerDecision?.decision === 'HOLD'
+                        ? 'bg-purple-100 text-purple-900 border-purple-300'
+                        : 'bg-slate-100 text-slate-600 border-slate-300'
+                    }`}
+                  >
+                    {bid.officerDecision?.decision ? `OFFICIAL: ${bid.officerDecision.decision}` : 'PENDING DECISION'}
+                  </span>
+                </div>
+
+                {bid.officerDecision ? (
+                  <div className="space-y-3 text-xs">
+                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">Recorded Statutory Rationale</div>
+                      <p className="text-slate-800 mt-1 leading-relaxed font-medium">
+                        {bid.officerDecision.comments}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-600 bg-slate-50/80 p-2.5 rounded-lg border border-slate-200">
+                      <div>
+                        <span className="font-bold text-slate-900">{bid.officerDecision.officerName}</span>
+                        <span className="text-slate-500"> ({bid.officerDecision.officerDesignation})</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-slate-400">
+                        {new Date(bid.officerDecision.decidedAt).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {bid.officerDecision.conditions && bid.officerDecision.conditions.length > 0 && (
+                      <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200 text-emerald-900 text-[11px]">
+                        <div className="font-bold text-[10px] uppercase text-emerald-800 mb-1">Contract Conditions Imposed</div>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {bid.officerDecision.conditions.map((cond, cIdx) => (
+                            <li key={cIdx}>{cond}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-xs text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    <p className="font-semibold text-slate-700">No official officer decision sealed yet.</p>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Review the deterministic checks and AI advisory, then seal your final determination.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-3 border-t border-slate-200 flex items-center justify-between text-[10px]">
+                <span className="text-slate-500 font-semibold">
+                  Sole legally binding determination under GeM procurement rules.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveSubTab('decision')}
+                  className="px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition"
+                >
+                  {bid.officerDecision ? 'Modify / Re-Record Decision' : 'Open Decision Board →'}
+                </button>
               </div>
             </div>
           </div>
@@ -2196,46 +2374,91 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
         <div className="space-y-6">
           {/* AI Structured Recommendation Card */}
           <div className="bg-white rounded-xl border border-purple-200 p-6 shadow-xs relative overflow-hidden">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-purple-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-purple-100 gap-3">
               <div className="flex items-center space-x-2">
                 <div className="p-2 bg-purple-100 text-purple-800 rounded-lg">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">
-                    Gemini Decision-Support Advisory (GeM GTC / GFR 2017)
+                    AI Recommendation Layer (GFR 2017 & GeM GTC)
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Engineered from verified evidence & deterministic compliance results
+                    Strict advisory synthesis based only on 4 verified deterministic inputs
                   </p>
                 </div>
               </div>
 
-              <span
-                className={`text-xs font-black uppercase px-3 py-1 rounded-full border ${
-                  bid.aiRecommendation?.recommendation === 'COMPLIANT'
-                    ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
-                    : bid.aiRecommendation?.recommendation === 'NON_COMPLIANT'
-                    ? 'bg-rose-100 text-rose-900 border-rose-300'
-                    : 'bg-amber-100 text-amber-900 border-amber-300'
-                }`}
-              >
-                RECOMMENDATION: {bid.aiRecommendation?.recommendation || 'PENDING'}
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`text-xs font-black uppercase px-3 py-1.5 rounded-lg border ${
+                    bid.aiRecommendation?.recommendation === 'COMPLIANT'
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                      : bid.aiRecommendation?.recommendation === 'NON_COMPLIANT'
+                      ? 'bg-rose-100 text-rose-900 border-rose-300'
+                      : 'bg-amber-100 text-amber-900 border-amber-300'
+                  }`}
+                >
+                  AI RECOMMENDATION: {bid.aiRecommendation?.recommendation || 'PENDING'}
+                </span>
+              </div>
+            </div>
+
+            {/* Strict Inputs Banner */}
+            <div className="mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs">
+              <div className="text-[10px] font-bold uppercase text-slate-500 tracking-wider mb-1.5">
+                Inputs Transmitted to AI Recommendation Layer:
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px]">
+                <div className="bg-white p-2 rounded border border-slate-200 text-slate-700">
+                  <span className="font-bold text-slate-900">1. Tender Requirements:</span>{' '}
+                  {bid.tender?.requirements?.length || 0} evaluated
+                </div>
+                <div className="bg-white p-2 rounded border border-slate-200 text-slate-700">
+                  <span className="font-bold text-slate-900">2. Deterministic Results:</span>{' '}
+                  {bid.complianceChecks?.length || 0} checks ({bid.overallScore}/100)
+                </div>
+                <div className="bg-white p-2 rounded border border-slate-200 text-slate-700">
+                  <span className="font-bold text-slate-900">3. Verified Evidence:</span>{' '}
+                  {bid.verifications?.length || 0} portal matches
+                </div>
+                <div className="bg-white p-2 rounded border border-slate-200 text-slate-700">
+                  <span className="font-bold text-slate-900">4. Detected Discrepancies:</span>{' '}
+                  {(bid.riskAssessment?.criticalFlags?.length || 0) + (bid.riskAssessment?.failedChecksCount || 0)} flags
+                </div>
+              </div>
+            </div>
+
+            {/* Score Integrity Guarantee Callout */}
+            <div className="mb-4 p-3 bg-emerald-50/70 rounded-lg border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span className="font-medium">
+                  <strong>Deterministic Compliance Score:</strong> The mathematical score ({bid.overallScore}/100) is computed strictly by the rules engine and cannot be altered by Gemini.
+                </span>
+              </div>
+              <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
+                SCORE IMMUTABLE
               </span>
             </div>
 
-            {/* Advisory Text */}
+            {/* Advisory Reason Text */}
             <div className="space-y-4 text-xs leading-relaxed">
-              <p className="text-slate-800 font-medium bg-purple-50/50 p-4 rounded-xl border border-purple-100">
-                {bid.aiRecommendation?.reasoningText}
-              </p>
+              <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100">
+                <div className="text-[10px] font-bold text-purple-900 uppercase tracking-wide mb-1">
+                  Reason for AI Recommendation
+                </div>
+                <p className="text-slate-800 font-medium leading-relaxed">
+                  {bid.aiRecommendation?.reason || bid.aiRecommendation?.reasoningText}
+                </p>
+              </div>
 
-              {/* Critical Issues & Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Strict JSON Output Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <h4 className="font-bold text-slate-900 uppercase text-[11px] mb-2 flex items-center">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600 mr-1.5" />
-                    Critical Issues / Non-Compliances
+                    Critical Issues
                   </h4>
                   {bid.aiRecommendation?.criticalIssues && bid.aiRecommendation.criticalIssues.length > 0 ? (
                     <ul className="space-y-1.5 list-disc list-inside text-rose-800 font-medium">
@@ -2244,14 +2467,30 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-slate-500">None detected. Bid meets baseline eligibility requirements.</p>
+                    <p className="text-slate-500">None detected. No statutory disqualification flags.</p>
+                  )}
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <h4 className="font-bold text-slate-900 uppercase text-[11px] mb-2 flex items-center">
+                    <FileText className="w-3.5 h-3.5 text-amber-600 mr-1.5" />
+                    Missing Requirements
+                  </h4>
+                  {bid.aiRecommendation?.missingRequirements && bid.aiRecommendation.missingRequirements.length > 0 ? (
+                    <ul className="space-y-1.5 list-disc list-inside text-amber-800 font-medium">
+                      {bid.aiRecommendation.missingRequirements.map((mr, idx) => (
+                        <li key={idx}>{mr}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-slate-500">All mandatory document requirements satisfied.</p>
                   )}
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                   <h4 className="font-bold text-slate-900 uppercase text-[11px] mb-2 flex items-center">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mr-1.5" />
-                    Recommended Officer Actions
+                    Recommended Actions
                   </h4>
                   {bid.aiRecommendation?.recommendedActions && bid.aiRecommendation.recommendedActions.length > 0 ? (
                     <ul className="space-y-1.5 list-disc list-inside text-slate-700">
@@ -2263,6 +2502,23 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                     <p className="text-slate-500">Proceed with standard evaluation protocol.</p>
                   )}
                 </div>
+              </div>
+
+              {/* Raw JSON inspection accordion */}
+              <div className="p-3 bg-slate-900 text-slate-100 rounded-lg text-xs">
+                <div className="text-[10px] font-mono text-slate-400 mb-1 flex items-center justify-between">
+                  <span>STRICT JSON RECOMMENDATION SCHEMA</span>
+                  <span className="text-emerald-400 font-bold">gemini-3.7-flash</span>
+                </div>
+                <pre className="text-[11px] font-mono overflow-x-auto text-slate-300">
+{JSON.stringify({
+  recommendation: bid.aiRecommendation?.recommendation,
+  reason: bid.aiRecommendation?.reason || bid.aiRecommendation?.reasoningText,
+  criticalIssues: bid.aiRecommendation?.criticalIssues || [],
+  missingRequirements: bid.aiRecommendation?.missingRequirements || [],
+  recommendedActions: bid.aiRecommendation?.recommendedActions || [],
+}, null, 2)}
+                </pre>
               </div>
 
               {/* Legal Mandate Disclaimer */}

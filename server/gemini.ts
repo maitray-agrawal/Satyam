@@ -600,7 +600,7 @@ export function generateDeterministicRecommendation(
     recommendedActions.push('Ensure EMD/PBG bank guarantee status is recorded prior to award.');
   }
 
-  const reasoningText =
+  const reason =
     recommendation === 'COMPLIANT'
       ? `Bidder ${bid.bidder?.legalName || 'Entity'} achieved an overall compliance score of ${assessment.overallScore}/100 with Low Risk. All mandatory statutory parameters (GST, PAN, MSME, OEM, and MII Local Content) were verified successfully against simulated government registries.`
       : recommendation === 'MANUAL_REVIEW'
@@ -611,7 +611,8 @@ export function generateDeterministicRecommendation(
     id: `rec-${bid.id}`,
     bidId: bid.id,
     recommendation,
-    reasoningText,
+    reason,
+    reasoningText: reason,
     criticalIssues: Array.from(new Set(criticalIssues)),
     missingRequirements: Array.from(new Set(missingRequirements)),
     recommendedActions: Array.from(new Set(recommendedActions)),
@@ -622,7 +623,15 @@ export function generateDeterministicRecommendation(
 }
 
 /**
- * Generate AI Recommendation using Gemini based ONLY on deterministic evidence
+ * Generate AI Recommendation using Gemini.
+ * Gemini receives ONLY:
+ * 1. tender requirements
+ * 2. deterministic compliance results
+ * 3. verified evidence
+ * 4. detected discrepancies
+ *
+ * Returns strict JSON with recommendation, reason, criticalIssues, missingRequirements, recommendedActions.
+ * Gemini does NOT alter the deterministic compliance score.
  */
 export async function generateAIRecommendationWithGemini(
   bid: Bid,
@@ -633,46 +642,70 @@ export async function generateAIRecommendationWithGemini(
 
   if (ai) {
     try {
-      const evidenceSummaryPayload = {
-        bidNumber: bid.bidNumber,
-        bidderName: bid.bidder?.legalName,
-        overallDeterministicScore: assessment.overallScore,
-        calculatedRiskLevel: assessment.riskLevel,
-        passedChecks: assessment.passedChecksCount,
-        failedChecks: assessment.failedChecksCount,
-        pendingChecks: assessment.pendingChecksCount,
-        criticalFlags: assessment.criticalFlags,
-        checks: checks.map((c) => ({
-          requirement: c.requirementName,
-          status: c.status,
+      // Form strictly the 4 allowed inputs
+      const geminiInput = {
+        tenderRequirements: (bid.tender?.requirements || []).map((r) => ({
+          requirementCode: r.requirementCode,
+          requirementName: r.requirementName,
+          isRequired: r.isRequired,
+          weight: r.weight,
+          minThreshold: r.minThreshold ?? null,
+          customRuleDescription: r.customRuleDescription,
+          issuingAuthority: r.issuingAuthority,
+          formatRequired: r.formatRequired,
+        })),
+        deterministicComplianceResults: checks.map((c) => ({
+          requirementCode: c.requirementCode,
+          requirementName: c.requirementName,
+          isRequired: c.isRequired,
           weight: c.weight,
+          status: c.status,
           scoreAchieved: c.scoreAchieved,
           evidenceSummary: c.evidenceSummary,
-          issuesFound: c.issuesFound,
+          deterministicRuleEvaluated: c.deterministicRuleEvaluated,
         })),
+        verifiedEvidence: (bid.verifications || []).map((v) => ({
+          requirementCode: v.requirementCode,
+          apiEndpoint: v.apiEndpoint,
+          matchStatus: v.matchStatus,
+          evidenceDetails: v.evidenceDetails,
+          verifiedData: v.verifiedDataJson,
+        })),
+        detectedDiscrepancies: [
+          ...(assessment.criticalFlags || []).map((flag) => ({
+            type: 'CRITICAL_DISQUALIFICATION_FLAG',
+            detail: flag,
+          })),
+          ...checks
+            .filter((c) => c.status === 'NON_COMPLIANT' || c.status === 'MISSING' || (c.issuesFound && c.issuesFound.length > 0))
+            .map((c) => ({
+              requirement: c.requirementName,
+              status: c.status,
+              issues: c.issuesFound || [],
+              evidenceSummary: c.evidenceSummary,
+            })),
+        ],
       };
 
-      const prompt = `You are the GeM Procurement AI Decision-Support Copilot.
-CRITICAL MANDATE:
-You are an advisory decision-support tool. You must NEVER autonomously qualify or disqualify a bidder.
-The final decision always strictly belongs to the authorized Procurement Officer.
+      const prompt = `You are the GeM Public Procurement AI Decision-Support Layer (GFR 2017 & GeM GTC).
+MANDATE & BOUNDARIES:
+- You are strictly an advisory decision-support layer. You provide recommendations to the authorized Procurement Officer.
+- You must NEVER alter or invent the deterministic compliance score; your recommendation must be grounded purely in the 4 provided inputs below.
 
-Below is the verified evidence and deterministic compliance calculation for Bid ${bid.bidNumber} submitted by "${bid.bidder?.legalName}":
-
+INPUTS:
 \`\`\`json
-${JSON.stringify(evidenceSummaryPayload, null, 2)}
+${JSON.stringify(geminiInput, null, 2)}
 \`\`\`
 
-Analyze these deterministic results and provide a structured decision-support advisory:
-1. Recommendation:
-   - "COMPLIANT": if score is high (>=90), no critical issues, and all mandatory checks pass.
-   - "MANUAL_REVIEW": if score is between 60-89, minor name mismatches, ambiguous micro exemptions, or missing optional items.
-   - "NON_COMPLIANT": if critical flags exist (e.g. blacklisting, cancelled GST, expired OEM auth, local content shortfall) or score < 60.
-2. Clear reasoning text highlighting key findings.
-3. Critical issues array (if any).
-4. Missing requirements array.
-5. Recommended actionable next steps for the Procurement Officer.
-6. The disclaimer text.`;
+Evaluate the above deterministic inputs and return strict JSON with:
+1. "recommendation": Must be exactly one of "COMPLIANT", "MANUAL_REVIEW", or "NON_COMPLIANT".
+   - "COMPLIANT": If all mandatory requirements pass and no critical issues exist.
+   - "MANUAL_REVIEW": If there are minor shortfalls, clarification needed (e.g. 48-hour shortfall window), or pending review items.
+   - "NON_COMPLIANT": If critical disqualification flags or mandatory requirement failures exist.
+2. "reason": Concise, authoritative explanation of the recommendation grounded in the deterministic results and verified evidence.
+3. "criticalIssues": Array of critical issues/non-compliances identified.
+4. "missingRequirements": Array of missing or non-compliant mandatory requirements.
+5. "recommendedActions": Array of recommended next steps for the Procurement Officer under GeM guidelines.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.7-flash',
@@ -686,7 +719,7 @@ Analyze these deterministic results and provide a structured decision-support ad
                 type: Type.STRING,
                 enum: ['COMPLIANT', 'MANUAL_REVIEW', 'NON_COMPLIANT'],
               },
-              reasoningText: { type: Type.STRING },
+              reason: { type: Type.STRING },
               criticalIssues: {
                 type: Type.ARRAY,
                 items: { type: Type.STRING },
@@ -700,21 +733,27 @@ Analyze these deterministic results and provide a structured decision-support ad
                 items: { type: Type.STRING },
               },
             },
-            required: ['recommendation', 'reasoningText', 'criticalIssues', 'missingRequirements', 'recommendedActions'],
+            required: ['recommendation', 'reason', 'criticalIssues', 'missingRequirements', 'recommendedActions'],
           },
         },
       });
 
       if (response.text) {
         const parsed = JSON.parse(response.text.trim());
+        const validRec: 'COMPLIANT' | 'MANUAL_REVIEW' | 'NON_COMPLIANT' =
+          parsed.recommendation === 'COMPLIANT' || parsed.recommendation === 'NON_COMPLIANT'
+            ? parsed.recommendation
+            : 'MANUAL_REVIEW';
+
         return {
           id: `rec-${bid.id}`,
           bidId: bid.id,
-          recommendation: parsed.recommendation || 'MANUAL_REVIEW',
-          reasoningText: parsed.reasoningText || 'Assessment evaluated against GeM criteria.',
-          criticalIssues: parsed.criticalIssues || [],
-          missingRequirements: parsed.missingRequirements || [],
-          recommendedActions: parsed.recommendedActions || [],
+          recommendation: validRec,
+          reason: parsed.reason || parsed.reasoningText || 'Assessment evaluated against GeM criteria.',
+          reasoningText: parsed.reason || parsed.reasoningText || 'Assessment evaluated against GeM criteria.',
+          criticalIssues: Array.isArray(parsed.criticalIssues) ? parsed.criticalIssues : [],
+          missingRequirements: Array.isArray(parsed.missingRequirements) ? parsed.missingRequirements : [],
+          recommendedActions: Array.isArray(parsed.recommendedActions) ? parsed.recommendedActions : [],
           modelUsed: 'gemini-3.7-flash',
           disclaimerText: LEGAL_DISCLAIMER,
           generatedAt: new Date().toISOString(),
