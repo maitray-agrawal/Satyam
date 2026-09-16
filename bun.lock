@@ -42,6 +42,28 @@
         "vite": "^6.2.3",
       },
     },
+    "packages/compliance-core": {
+      "name": "@gev-verify/compliance-core",
+      "version": "1.0.0",
+      "dependencies": {
+        "@gev-verify/shared-types": "workspace:*",
+      },
+    },
+    "packages/config": {
+      "name": "@gev-verify/config",
+      "version": "1.0.0",
+    },
+    "packages/shared-types": {
+      "name": "@gev-verify/shared-types",
+      "version": "1.0.0",
+    },
+    "packages/validation": {
+      "name": "@gev-verify/validation",
+      "version": "1.0.0",
+      "dependencies": {
+        "zod": "^3.24.2 || ^4.5.4",
+      },
+    },
   },
   "packages": {
     "@alcalzone/ansi-tokenize": ["@alcalzone/ansi-tokenize@0.2.5", "", { "dependencies": { "ansi-styles": "^6.2.1", "is-fullwidth-code-point": "^5.0.0" } }, "sha512-3NX/MpTdroi0aKz134A6RC2Gb2iXVECN4QaAXnvCIxxIm3C3AVB1mkUe8NaaiyvOpDfsrqWhYtj+Q6a62RrTsw=="],
@@ -243,6 +265,14 @@
     "@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.25.12", "", { "os": "win32", "cpu": "ia32" }, "sha512-HkqnmmBoCbCwxUKKNPBixiWDGCpQGVsrQfJoVGYLPT41XWF8lHuE5N6WhVia2n4o5QK5M4tYr21827fNhi4byQ=="],
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.25.12", "", { "os": "win32", "cpu": "x64" }, "sha512-alJC0uCZpTFrSL0CCDjcgleBXPnCrEAhTBILpeAp7M/OFgoqtAetfBzX0xM00MUsVVPpVjlPuMbREqnZCXaTnA=="],
+
+    "@gev-verify/compliance-core": ["@gev-verify/compliance-core@workspace:packages/compliance-core"],
+
+    "@gev-verify/config": ["@gev-verify/config@workspace:packages/config"],
+
+    "@gev-verify/shared-types": ["@gev-verify/shared-types@workspace:packages/shared-types"],
+
+    "@gev-verify/validation": ["@gev-verify/validation@workspace:packages/validation"],
 
     "@google/genai": ["@google/genai@2.19.0", "", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-IM3u1FjpOLyOPsPh0smGA6Ntj2olUWCPbTs/WQj7cA/2AKCGw/652W7IaySx0XtwuscFnMYBoraebQusSZ0zSQ=="],
 

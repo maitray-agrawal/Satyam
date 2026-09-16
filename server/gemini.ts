@@ -10,14 +10,7 @@ function getGeminiClient(): GoogleGenAI | null {
     return null;
   }
   if (!aiClient) {
-    aiClient = new GoogleGenAI({
-      apiKey,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        },
-      },
-    });
+    aiClient = new GoogleGenAI({ apiKey });
   }
   return aiClient;
 }

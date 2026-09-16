@@ -150,7 +150,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           {/* Section 3: AI Advisory Synopsis (Explicitly Decision Support) */}
           <div className="border border-purple-200 p-3 bg-purple-50/40 rounded-lg space-y-1">
             <div className="font-sans font-bold text-[10px] uppercase text-purple-900 flex items-center justify-between">
-              <span>AI Decision-Support Advisory (Gemini 3.7 Flash)</span>
+              <span>AI Decision-Support Advisory</span>
               <span>Recommendation: {bid.aiRecommendation?.recommendation}</span>
             </div>
             <p className="text-[11px] text-slate-800 italic">{bid.aiRecommendation?.reasoningText}</p>

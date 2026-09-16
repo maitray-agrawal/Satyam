@@ -174,7 +174,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
     formData.append('documentType', typeToUpload);
 
     try {
-      setTimeout(() => setUploadStage('2. Transmitting document to Gemini 3.7 Flash extraction pipeline...'), 400);
+      setTimeout(() => setUploadStage('2. Transmitting document to AI extraction pipeline...'), 400);
       setTimeout(() => setUploadStage('3. Parsing structured JSON schema & verifying citations...'), 1000);
 
       const res = await fetch('/api/documents/upload', {
@@ -186,7 +186,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
         setUploadStage('4. Finalizing database persistence & compliance recalculation...');
         setUploadMessage({
           type: 'success',
-          text: `Document "${fileToUpload.name}" successfully analyzed by Gemini 3.7 Flash. Structured fields extracted and stored in database.`,
+          text: `Document "${fileToUpload.name}" successfully analyzed. Structured fields extracted and stored in database.`,
         });
         setUploadFile(null);
         await onRefreshBid();
@@ -544,7 +544,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <span>2. Uploads & Gemini OCR</span>
+            <span>2. Uploads & Document Intelligence</span>
             <span className="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.2 rounded-full">
               {bid.documents?.length || 0}
             </span>
@@ -988,11 +988,11 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                   <h3 className="text-sm font-bold text-slate-900">Upload Bidder Compliance Document</h3>
                   <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
                     <Sparkles className="w-3 h-3 mr-1 text-purple-600" />
-                    Gemini 3.7 Flash Document Pipeline
+                    AI Document Analysis Pipeline
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Upload PDF or high-resolution images. Server-side Gemini multimodal OCR extracts structured bidder identity and statutory compliance metadata without hallucination.
+                  Upload PDF or high-resolution images. Server-side multimodal extraction parses structured bidder identity and statutory compliance metadata without hallucination.
                 </p>
               </div>
             </div>
@@ -1003,7 +1003,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 <div className="flex items-center space-x-3">
                   <RefreshCw className="w-5 h-5 text-purple-600 animate-spin flex-shrink-0" />
                   <div className="flex-1">
-                    <div className="font-bold text-purple-900">Gemini Document Analysis Pipeline In Progress...</div>
+                    <div className="font-bold text-purple-900">Analyzing Document...</div>
                     <div className="text-purple-700 text-[11px] mt-0.5 font-medium">{uploadStage || 'Processing document multimodal tokens and extracting structured metadata...'}</div>
                   </div>
                 </div>
@@ -1108,7 +1108,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                   className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:bg-slate-300 text-white text-xs font-bold transition shadow-xs"
                 >
                   <Upload className={`w-3.5 h-3.5 ${isUploading ? 'animate-bounce' : ''}`} />
-                  <span>{isUploading ? 'Gemini Analyzing...' : 'Upload & Extract with Gemini 3.7'}</span>
+                  <span>{isUploading ? 'Analyzing Document...' : 'Upload & Extract Fields'}</span>
                 </button>
               </div>
             </form>
@@ -1224,7 +1224,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                               handleReanalyzeDocument(doc);
                             }}
                             className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded bg-slate-100 hover:bg-purple-100 text-slate-600 hover:text-purple-800 text-[10px] font-semibold transition"
-                            title="Re-run Gemini extraction"
+                            title="Re-analyze Document"
                           >
                             <RefreshCw className={`w-2.5 h-2.5 ${isReanalyzingThis ? 'animate-spin text-purple-600' : ''}`} />
                             <span>{isReanalyzingThis ? 'Analyzing...' : 'Re-extract'}</span>
@@ -1254,7 +1254,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                         </span>
                         <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded border border-purple-200 inline-flex items-center">
                           <Sparkles className="w-2.5 h-2.5 mr-1" />
-                          Gemini 3.7 Flash Extracted
+                          AI Extracted
                         </span>
                         <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded">
                           {selectedDocForInspect.documentType}
@@ -1275,7 +1275,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                         className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold transition"
                       >
                         <RefreshCw className={`w-3 h-3 ${isReanalyzingDocId === selectedDocForInspect.id ? 'animate-spin text-purple-600' : ''}`} />
-                        <span>{isReanalyzingDocId === selectedDocForInspect.id ? 'Re-analyzing...' : 'Re-run Gemini'}</span>
+                        <span>{isReanalyzingDocId === selectedDocForInspect.id ? 'Re-analyzing...' : 'Re-analyze Document'}</span>
                       </button>
 
                       <button
@@ -1520,7 +1520,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                           className="mt-3 inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs"
                         >
                           <Sparkles className="w-3 h-3" />
-                          <span>Extract Fields with Gemini 3.7 Flash</span>
+                          <span>Extract Fields via AI</span>
                         </button>
                       </div>
                     )}
@@ -1654,7 +1654,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                  Rigorous tri-party reconciliation across: <span className="text-purple-300 font-semibold">(1) Gemini 3.7 Extracted Document Evidence</span>, <span className="text-amber-300 font-semibold">(2) Simulated Government Portal Records</span> (GSTN, ITD, Udyam, EPFO, ESIC, DPIIT, NSIC, OEM, Debarment Repo), and <span className="text-blue-300 font-semibold">(3) Tender Requirement Conditions</span>.
+                  Rigorous tri-party reconciliation across: <span className="text-purple-300 font-semibold">(1) Extracted Document Evidence</span>, <span className="text-amber-300 font-semibold">(2) Simulated Government Portal Records</span> (GSTN, ITD, Udyam, EPFO, ESIC, DPIIT, NSIC, OEM, Debarment Repo), and <span className="text-blue-300 font-semibold">(3) Tender Requirement Conditions</span>.
                 </p>
               </div>
             </div>
@@ -1971,7 +1971,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                             <div className="flex items-center justify-between pb-2 border-b border-purple-200/80">
                               <div className="flex items-center space-x-1.5 text-purple-900 font-bold text-xs">
                                 <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                                <span>Layer 1: Gemini OCR Extraction</span>
+                                <span>Layer 1: Multimodal Extraction</span>
                               </div>
                               {item.documentEvidence.hasDocument ? (
                                 <span className="bg-purple-100 text-purple-800 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
@@ -2031,7 +2031,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                             )}
                           </div>
                           <span className="text-[10px] text-purple-700 font-medium">
-                            Extracted via Gemini 3.7 Flash
+                            Extracted via Document Intelligence
                           </span>
                         </div>
 
@@ -2501,7 +2501,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               <div className="flex items-center space-x-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
                 <span className="font-medium">
-                  <strong>Deterministic Compliance Score:</strong> The mathematical score ({bid.overallScore}/100) is computed strictly by the rules engine and cannot be altered by Gemini.
+                  <strong>Deterministic Compliance Score:</strong> The mathematical score ({bid.overallScore}/100) is computed strictly by the rules engine and cannot be altered by AI.
                 </span>
               </div>
               <span className="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-300">
@@ -2627,7 +2627,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               {copilotLoading && (
                 <div className="flex items-center space-x-2 text-slate-500 text-xs italic">
                   <Sparkles className="w-3.5 h-3.5 animate-spin text-purple-600" />
-                  <span>Gemini is generating procurement guidance...</span>
+                  <span>Generating AI procurement guidance...</span>
                 </div>
               )}
             </div>

@@ -110,7 +110,7 @@ export const TendersListView: React.FC<TendersListViewProps> = ({
       const data = await res.json();
       setSelectedTender(data.tender);
       setExtractionFeedback(
-        `Gemini extracted ${data.extraction?.candidateRequirements?.length || 0} candidate clauses from RFP. AI extracted clauses are placed in candidate draft status for officer review.`
+        `AI clause intelligence extracted ${data.extraction?.candidateRequirements?.length || 0} candidate clauses from RFP. Extracted clauses are placed in candidate draft status for officer review.`
       );
       if (onTenderUpdated) onTenderUpdated();
     } catch (err: any) {
@@ -254,7 +254,7 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Deterministic ruleset management with Gemini AI-assisted RFP clause extraction and officer approval workflows.
+            Deterministic ruleset management with AI-assisted RFP clause extraction and officer approval workflows.
           </p>
         </div>
         <button
@@ -400,7 +400,7 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
                     <div className="flex items-center space-x-2">
                       <Sparkles className="w-4 h-4 text-purple-700" />
                       <h3 className="text-xs font-bold text-purple-900 uppercase tracking-wider">
-                        Gemini Multimodal RFP Clause Extractor
+                        Multimodal RFP Clause Extractor
                       </h3>
                     </div>
                     <span className="text-[10px] text-purple-700 font-semibold bg-purple-100 px-2 py-0.5 rounded">
@@ -409,7 +409,7 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
                   </div>
 
                   <p className="text-xs text-purple-800 leading-relaxed">
-                    Upload an official RFP tender PDF or paste document clauses. Gemini extracts structured statutory requirements, minimum financial thresholds, and evaluation weights. 
+                    Upload an official RFP tender PDF or paste document clauses. The extraction pipeline parses structured statutory requirements, minimum financial thresholds, and evaluation weights. 
                     <strong className="block mt-1 text-purple-950 font-bold">
                       Mandate: AI extracted clauses are placed in candidate DRAFT status and do not affect scoring until approved and published by an officer.
                     </strong>
@@ -472,7 +472,7 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
                       {isExtracting ? (
                         <>
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Gemini Extracting Clauses...</span>
+                          <span>Extracting Candidate Clauses...</span>
                         </>
                       ) : (
                         <>
