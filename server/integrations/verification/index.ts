@@ -9,6 +9,9 @@ import {
   NsicVerificationAdapter,
   OemVerificationAdapter,
   BlacklistVerificationAdapter,
+  MakeInIndiaVerificationAdapter,
+  McaVerificationAdapter,
+  DigiLockerManualAdapter,
 } from './adapters.bundle';
 
 export * from './verification.adapter';
@@ -31,6 +34,9 @@ export function initializeVerificationRegistry(): VerificationAdapterRegistry {
   registry.register(new NsicVerificationAdapter());
   registry.register(new OemVerificationAdapter());
   registry.register(new BlacklistVerificationAdapter());
+  registry.register(new MakeInIndiaVerificationAdapter());
+  registry.register(new McaVerificationAdapter());
+  registry.register(new DigiLockerManualAdapter());
 
   return registry;
 }

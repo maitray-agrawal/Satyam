@@ -1,7 +1,7 @@
 export const openApiSpec = {
   openapi: '3.0.3',
   info: {
-    title: 'GEV-VERIFY: GeM Enterprise Bid Compliance & Verification API',
+    title: 'SATYAM: GeM Enterprise Bid Compliance & Verification API',
     version: '2.4.0',
     description:
       'National Public Procurement Enterprise API for automated documentary extraction, simulated government registry verification (GST, PAN, MSME, EPFO, ESIC, OEM, Debarment), deterministic policy-driven compliance scoring, and Gemini evidence-grounded decision support under GFR 2017.',

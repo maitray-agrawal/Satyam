@@ -8,9 +8,11 @@ export interface VerificationInput {
   bidderGstin?: string;
   bidderPan?: string;
   bidderLegalName?: string;
+  bidderCin?: string;
   documentData?: Record<string, any>;
   metadata?: Record<string, any>;
   tenderRequirements?: Array<{ requirementCode: string; minThreshold?: number }>;
+  verificationMode?: 'SIMULATED' | 'MANUAL_EVIDENCE' | 'AUTHORIZED_LIVE';
 }
 
 export interface VerificationResult {
@@ -18,6 +20,7 @@ export interface VerificationResult {
   serviceType: string;
   apiEndpoint: string;
   simulated: boolean;
+  verificationMode?: 'SIMULATED' | 'MANUAL_EVIDENCE' | 'AUTHORIZED_LIVE';
   simulationNotice: string;
   matchStatus: 'VERIFIED' | 'MISMATCH' | 'NOT_FOUND' | 'SUSPENDED' | 'EXEMPTED' | 'FLAGGED';
   confidenceScore: number;

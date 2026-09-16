@@ -9,6 +9,7 @@ import {
   Document,
   ExtractedField,
   Verification,
+  ThreeWayReconciliationItem,
 } from './types';
 
 export interface EvaluationInput {
@@ -16,6 +17,7 @@ export interface EvaluationInput {
   requirements: TenderRequirement[];
   documents: Document[];
   verifications: Verification[];
+  reconciliations?: ThreeWayReconciliationItem[];
 }
 
 export interface EvaluationResult {
@@ -44,7 +46,7 @@ export interface EvaluationResult {
  *    - Critical risk flags list
  */
 export function evaluateBidCompliance(input: EvaluationInput): EvaluationResult {
-  const { bid, requirements, documents, verifications } = input;
+  const { bid, requirements, documents, verifications, reconciliations } = input;
   const bidder = bid.bidder;
 
   const checks: ComplianceCheck[] = [];
@@ -56,11 +58,23 @@ export function evaluateBidCompliance(input: EvaluationInput): EvaluationResult 
   let failedCount = 0;
   let pendingCount = 0;
 
-  for (const req of requirements) {
+  // MANDATE: Only officer-approved requirements drive compliance evaluation.
+  // AI-extracted candidate requirements in DRAFT status MUST NOT drive compliance.
+  const activeRequirements = requirements.filter(
+    (req) => req.status !== 'REJECTED' && req.status !== 'DRAFT' && req.officerApproved !== false
+  );
+  const evalRequirements = activeRequirements.length > 0
+    ? activeRequirements
+    : requirements.filter((r) => r.status !== 'REJECTED' && r.status !== 'DRAFT');
+
+  for (const req of evalRequirements) {
     const code = req.requirementCode;
     const isMandatory = req.isRequired;
     const weight = typeof req.weight === 'number' && req.weight > 0 ? req.weight : 10;
     totalWeight += weight;
+
+    // Direct consumption of 3-way reconciliation outcome if available
+    const recon = reconciliations?.find((r) => r.requirementCode === code);
 
     // STEP 1: Evaluate whether the requirement applies to this bidder
     const applicability = evaluateRequirementApplicability(req, bid);
@@ -441,6 +455,35 @@ export function evaluateBidCompliance(input: EvaluationInput): EvaluationResult 
       }
     }
 
+    // Direct Integration with 3-Way Reconciliation Matrix outcome
+    if (recon) {
+      if (recon.outcome === 'NOT_APPLICABLE') {
+        status = 'EXEMPTED';
+        scoreAchieved = weight;
+        evidenceSummary = `${evidenceSummary} [3-Way Reconciliation: Waived/Exempt per statutory rule]`.trim();
+      } else if (recon.outcome === 'NON_COMPLIANT') {
+        status = 'NON_COMPLIANT';
+        scoreAchieved = 0;
+        if (recon.issues && recon.issues.length) {
+          recon.issues.forEach(iss => { if (!issuesFound.includes(iss)) issuesFound.push(iss); });
+        }
+      } else if (recon.outcome === 'MISSING_EVIDENCE') {
+        status = 'MISSING';
+        scoreAchieved = 0;
+        if (recon.issues && recon.issues.length) {
+          recon.issues.forEach(iss => { if (!issuesFound.includes(iss)) issuesFound.push(iss); });
+        }
+      } else if (recon.outcome === 'INCONSISTENT' || recon.outcome === 'REVIEW_REQUIRED') {
+        if (status === 'COMPLIANT') {
+          status = 'REVIEW';
+          scoreAchieved = Math.round(weight * 0.45);
+        }
+        if (recon.issues && recon.issues.length) {
+          recon.issues.forEach(iss => { if (!issuesFound.includes(iss)) issuesFound.push(iss); });
+        }
+      }
+    }
+
     // Tally compliance outcome counts and weights
     achievedWeight += scoreAchieved;
     if (status === 'COMPLIANT' || status === 'EXEMPTED') {
@@ -515,7 +558,7 @@ export function evaluateBidCompliance(input: EvaluationInput): EvaluationResult 
 /**
  * Evaluates whether a tender requirement applies to a specific bidder
  */
-function evaluateRequirementApplicability(
+export function evaluateRequirementApplicability(
   req: TenderRequirement,
   bid: Bid
 ): { applies: boolean; reason: string } {

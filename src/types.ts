@@ -129,6 +129,15 @@ export interface TenderRequirement {
   customRuleDescription: string;
   issuingAuthority: string;
   formatRequired: string;
+  version?: number;
+  status?: 'DRAFT' | 'APPROVED' | 'REJECTED';
+  officerApproved?: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  category?: string;
+  sourceText?: string;
+  sourcePage?: number;
+  confidence?: number;
 }
 
 export interface Tender {
@@ -141,9 +150,22 @@ export interface Tender {
   estimatedValue: number;
   deadline: string;
   status: 'DRAFT' | 'ACTIVE' | 'EVALUATION' | 'AWARDED' | 'CANCELLED';
+  rulesetVersion?: number;
+  rulesetPublishedAt?: string;
+  rulesetPublishedBy?: string;
+  rfpFileName?: string;
   requirements?: TenderRequirement[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TenderDocumentExtractionResult {
+  tenderId: string;
+  fileName: string;
+  fileSize: number;
+  extractedClausesCount: number;
+  clauses: TenderRequirement[];
+  summary: string;
 }
 
 export interface Bidder {
@@ -175,12 +197,15 @@ export interface ExtractedField {
   documentId: string;
   fieldName: string;
   fieldValue: string | null;
+  originalValue?: string | null;
+  normalizedValue?: string | null;
   confidence: number;
   sourcePage?: number;
   isPresent: boolean;
   rawSnippet?: string;
   missingReason?: string;
   category?: 'IDENTITY' | 'COMPLIANCE' | 'STATUTORY' | 'FINANCIAL' | 'TECHNICAL';
+  extractionMethod?: 'OCR_MULTIMODAL' | 'PDF_NATIVE_TEXT' | 'MANUAL_ATTESTATION';
 }
 
 export interface Document {
@@ -279,6 +304,107 @@ export interface AuditLog {
   timestamp: string;
 }
 
+export interface ThreeWayReconciliationItem {
+  id: string;
+  requirementCode: RequirementCode;
+  requirementTitle: string;
+  isRequired: boolean;
+  weight: number;
+  documentEvidence: {
+    hasDocument: boolean;
+    documentType?: string;
+    fileName?: string;
+    sourcePage?: number;
+    sha256?: string;
+    confidence?: number;
+    extractedSnippet?: string;
+    extractedKeyValues: Record<string, string>;
+    provenance: string;
+  };
+  verificationEvidence: {
+    sourcePortal: string;
+    endpoint: string;
+    verificationMode: 'SIMULATED' | 'MANUAL_EVIDENCE' | 'AUTHORIZED_LIVE';
+    timestamp: string;
+    verifiedKeyValues: Record<string, any>;
+    statusText: string;
+    isSimulated: boolean;
+  };
+  tenderCondition: {
+    ruleDescription: string;
+    threshold?: string | number;
+    issuingAuthority: string;
+    formatRequired: string;
+  };
+  outcome: 'COMPLIANT' | 'NON_COMPLIANT' | 'REVIEW_REQUIRED' | 'MISSING_EVIDENCE' | 'INCONSISTENT' | 'NOT_APPLICABLE';
+  scoreAchieved: number;
+  confidenceScore: number;
+  reason: string;
+  issues: string[];
+  severity: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  recommendedAction: string;
+}
+
+export interface DocumentFieldObservation {
+  documentId: string;
+  documentType: string;
+  fileName: string;
+  field: string;
+  value: string;
+  page?: number;
+  confidence?: number;
+}
+
+export interface InconsistencyItem {
+  id: string;
+  category: 'IDENTITY' | 'FINANCIAL' | 'OPERATIONAL' | 'STATUTORY';
+  field: string;
+  severity: 'INCONSISTENCY_DETECTED' | 'REVIEW_REQUIRED' | 'HIGH_RISK_REVIEW';
+  documentA: DocumentFieldObservation;
+  documentB: DocumentFieldObservation;
+  differenceDescription: string;
+  materialImpact: string;
+  recommendedAction: string;
+}
+
+export interface CrossDocumentConsistencyReport {
+  bidId: string;
+  analyzedAt: string;
+  totalDocumentsAnalyzed: number;
+  consistencyScore: number;
+  overallStatus: 'CONSISTENT' | 'REVIEW_REQUIRED' | 'HIGH_RISK_INCONSISTENCIES';
+  inconsistencies: InconsistencyItem[];
+  verifiedMatchesCount: number;
+  summary: string;
+}
+
+export interface EvaluationRun {
+  id: string;
+  bidId: string;
+  tenderId: string;
+  rulesetVersion: number;
+  evaluatorName: string;
+  evaluatorRole: string;
+  overallScore: number;
+  riskLevel: RiskLevel;
+  status: string;
+  timestamp: string;
+  complianceChecksCount: number;
+  passedChecksCount: number;
+  failedChecksCount: number;
+  criticalFlagsCount: number;
+  aiRecommendation?: string;
+  officerDecision?: string;
+  snapshotData?: {
+    checks?: ComplianceCheck[];
+    riskAssessment?: RiskAssessment;
+    crossReport?: CrossVerificationReport;
+    aiRecommendation?: AIRecommendation;
+    threeWayReconciliations?: ThreeWayReconciliationItem[];
+    crossDocConsistency?: CrossDocumentConsistencyReport;
+  };
+}
+
 export interface Bid {
   id: string;
   tenderId: string;
@@ -302,6 +428,9 @@ export interface Bid {
   officerDecision?: OfficerDecision;
   crossVerificationReport?: CrossVerificationReport;
   auditLogs?: AuditLog[];
+  evaluationRuns?: EvaluationRun[];
+  threeWayReconciliations?: ThreeWayReconciliationItem[];
+  crossDocConsistency?: CrossDocumentConsistencyReport;
 }
 
 export interface DashboardStats {

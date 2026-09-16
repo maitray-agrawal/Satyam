@@ -1,6 +1,6 @@
 # AI Intelligence Service (Python FastAPI)
 
-This microservice provides high-throughput statutory document parsing, Gemini multimodal field extraction, and citation-grounded evaluation summaries for the GEV-VERIFY platform.
+This microservice provides high-throughput statutory document parsing, Gemini multimodal field extraction, and citation-grounded evaluation summaries for the SATYAM platform (SIH 2026 PS 26100).
 
 ## Endpoints
 - `GET /health` - Service health and Gemini status

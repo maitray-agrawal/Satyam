@@ -15,10 +15,13 @@ import {
   OfficerDecision,
   AuditLog,
   User,
+  EvaluationRun,
 } from './types';
 import { evaluateBidCompliance } from './complianceEngine';
 import { VerificationSimulators } from './verificationSimulators';
 import { execute3WayCrossVerification } from './crossVerificationEngine';
+import { executeThreeWayReconciliation } from './reconciliationService';
+import { evaluateCrossDocumentConsistency } from './consistencyEngine';
 import { generateAIRecommendationWithGemini, generateDeterministicRecommendation } from './gemini';
 
 const DB_DIR = path.join(process.cwd(), 'data');
@@ -268,7 +271,55 @@ function initSchema(db: Database) {
       payloadJson TEXT,
       timestamp TEXT NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS evaluation_runs (
+      id TEXT PRIMARY KEY,
+      bidId TEXT NOT NULL,
+      tenderId TEXT NOT NULL,
+      rulesetVersion INTEGER NOT NULL,
+      evaluatorName TEXT NOT NULL,
+      evaluatorRole TEXT NOT NULL,
+      overallScore REAL NOT NULL,
+      riskLevel TEXT NOT NULL,
+      status TEXT NOT NULL,
+      timestamp TEXT NOT NULL,
+      complianceChecksCount INTEGER NOT NULL,
+      passedChecksCount INTEGER NOT NULL,
+      failedChecksCount INTEGER NOT NULL,
+      criticalFlagsCount INTEGER NOT NULL,
+      aiRecommendation TEXT,
+      officerDecision TEXT,
+      snapshotJson TEXT NOT NULL,
+      FOREIGN KEY(bidId) REFERENCES bids(id)
+    );
   `);
+
+  const safeAddColumn = (table: string, colDef: string) => {
+    try {
+      db.run(`ALTER TABLE ${table} ADD COLUMN ${colDef}`);
+    } catch {
+      // Column already exists
+    }
+  };
+
+  safeAddColumn('tenders', 'rulesetVersion INTEGER DEFAULT 1');
+  safeAddColumn('tenders', 'rulesetPublishedAt TEXT');
+  safeAddColumn('tenders', 'rulesetPublishedBy TEXT');
+  safeAddColumn('tenders', 'rfpFileName TEXT');
+
+  safeAddColumn('tender_requirements', 'version INTEGER DEFAULT 1');
+  safeAddColumn('tender_requirements', "status TEXT DEFAULT 'APPROVED'");
+  safeAddColumn('tender_requirements', 'officerApproved INTEGER DEFAULT 1');
+  safeAddColumn('tender_requirements', 'approvedBy TEXT');
+  safeAddColumn('tender_requirements', 'approvedAt TEXT');
+  safeAddColumn('tender_requirements', 'category TEXT');
+  safeAddColumn('tender_requirements', 'sourceText TEXT');
+  safeAddColumn('tender_requirements', 'sourcePage INTEGER DEFAULT 1');
+  safeAddColumn('tender_requirements', 'confidence REAL DEFAULT 1.0');
+
+  safeAddColumn('extracted_fields', 'originalValue TEXT');
+  safeAddColumn('extracted_fields', 'normalizedValue TEXT');
+  safeAddColumn('extracted_fields', "extractionMethod TEXT DEFAULT 'OCR_MULTIMODAL'");
 }
 
 // ----------------- SEED DATA INITIALIZATION -----------------
@@ -826,11 +877,31 @@ export async function getTendersList(): Promise<Tender[]> {
   const res = database.exec(`SELECT * FROM tenders ORDER BY createdAt DESC`);
   if (!res.length || !res[0].values.length) return [];
   const cols = res[0].columns;
-  return res[0].values.map((row) => {
+  const tenders = res[0].values.map((row) => {
     const obj: any = {};
     cols.forEach((c, idx) => (obj[c] = row[idx]));
     return obj as Tender;
   });
+
+  for (const t of tenders) {
+    const reqRes = database.exec(`SELECT * FROM tender_requirements WHERE tenderId = '${t.id}'`);
+    if (reqRes.length && reqRes[0].values.length) {
+      const reqCols = reqRes[0].columns;
+      t.requirements = reqRes[0].values.map((row) => {
+        const rObj: any = {};
+        reqCols.forEach((c, idx) => (rObj[c] = row[idx]));
+        rObj.isRequired = Boolean(rObj.isRequired);
+        rObj.officerApproved = rObj.officerApproved !== 0;
+        rObj.status = rObj.status || 'APPROVED';
+        rObj.weight = Number(rObj.weight) || 10;
+        return rObj as TenderRequirement;
+      });
+    } else {
+      t.requirements = [];
+    }
+  }
+
+  return tenders;
 }
 
 export async function getTenderById(tenderId: string): Promise<Tender | null> {
@@ -849,6 +920,11 @@ export async function getTenderById(tenderId: string): Promise<Tender | null> {
       const rObj: any = {};
       reqCols.forEach((c, idx) => (rObj[c] = row[idx]));
       rObj.isRequired = Boolean(rObj.isRequired);
+      rObj.officerApproved = rObj.officerApproved !== 0;
+      rObj.status = rObj.status || 'APPROVED';
+      rObj.weight = Number(rObj.weight) || 10;
+      rObj.confidence = Number(rObj.confidence) || 0.95;
+      rObj.sourcePage = Number(rObj.sourcePage) || 1;
       return rObj as TenderRequirement;
     });
   } else {
@@ -858,26 +934,230 @@ export async function getTenderById(tenderId: string): Promise<Tender | null> {
   return tender;
 }
 
-export async function createTender(tender: Omit<Tender, 'id' | 'createdAt' | 'updatedAt'>, reqs: Array<Omit<TenderRequirement, 'id' | 'tenderId'>>): Promise<Tender> {
+export async function createTender(
+  tender: Omit<Tender, 'id' | 'createdAt' | 'updatedAt'>,
+  reqs: Array<Omit<TenderRequirement, 'id' | 'tenderId'>>
+): Promise<Tender> {
   const database = await getDb();
   const id = `tnd-${Date.now()}`;
   const now = new Date().toISOString();
 
   database.run(
-    `INSERT INTO tenders (id, tenderId, title, department, description, category, estimatedValue, deadline, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, tender.tenderId, tender.title, tender.department, tender.description, tender.category, tender.estimatedValue, tender.deadline, tender.status || 'ACTIVE', now, now]
+    `INSERT INTO tenders (id, tenderId, title, department, description, category, estimatedValue, deadline, status, rulesetVersion, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      tender.tenderId,
+      tender.title,
+      tender.department,
+      tender.description,
+      tender.category,
+      tender.estimatedValue,
+      tender.deadline,
+      tender.status || 'ACTIVE',
+      1,
+      now,
+      now,
+    ]
   );
 
   for (const r of reqs) {
     const reqId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     database.run(
-      `INSERT INTO tender_requirements (id, tenderId, requirementCode, requirementName, isRequired, weight, minThreshold, customRuleDescription, issuingAuthority, formatRequired) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [reqId, id, r.requirementCode, r.requirementName, r.isRequired ? 1 : 0, r.weight, String(r.minThreshold || ''), r.customRuleDescription, r.issuingAuthority, r.formatRequired]
+      `INSERT INTO tender_requirements (
+        id, tenderId, requirementCode, requirementName, isRequired, weight, minThreshold,
+        customRuleDescription, issuingAuthority, formatRequired, version, status, officerApproved
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reqId,
+        id,
+        r.requirementCode,
+        r.requirementName,
+        r.isRequired ? 1 : 0,
+        r.weight || 10,
+        String(r.minThreshold || ''),
+        r.customRuleDescription || '',
+        r.issuingAuthority || 'Government Authority',
+        r.formatRequired || 'PDF Certificate',
+        1,
+        'APPROVED',
+        1,
+      ]
     );
   }
 
   saveDb();
   return (await getTenderById(id))!;
+}
+
+export async function addCandidateRequirementsToTender(
+  tenderId: string,
+  clauses: Array<any>,
+  rfpFileName?: string
+): Promise<Tender> {
+  const database = await getDb();
+  const tender = await getTenderById(tenderId);
+  if (!tender) throw new Error(`Tender ${tenderId} not found.`);
+
+  if (rfpFileName) {
+    database.run(`UPDATE tenders SET rfpFileName = ? WHERE id = ?`, [rfpFileName, tender.id]);
+  }
+
+  for (const c of clauses) {
+    const reqId = `req-draft-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    database.run(
+      `INSERT INTO tender_requirements (
+        id, tenderId, requirementCode, requirementName, isRequired, weight, minThreshold,
+        customRuleDescription, issuingAuthority, formatRequired, version, status,
+        officerApproved, category, sourceText, sourcePage, confidence
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        reqId,
+        tender.id,
+        c.requirementCode,
+        c.requirementName,
+        c.isRequired ? 1 : 0,
+        c.weight || 10,
+        String(c.minThreshold || ''),
+        c.customRuleDescription || '',
+        c.issuingAuthority || 'Government of India',
+        c.formatRequired || 'Attested Certificate',
+        tender.rulesetVersion || 1,
+        'DRAFT', // All AI clauses are candidate DRAFT
+        0,       // officerApproved: false
+        c.category || 'STATUTORY',
+        c.sourceText || '',
+        c.sourcePage || 1,
+        c.confidence || 0.9,
+      ]
+    );
+  }
+
+  saveDb();
+  return (await getTenderById(tender.id))!;
+}
+
+export async function updateTenderRequirement(
+  reqId: string,
+  updates: Partial<TenderRequirement>
+): Promise<TenderRequirement | null> {
+  const database = await getDb();
+  const res = database.exec(`SELECT * FROM tender_requirements WHERE id = '${reqId}'`);
+  if (!res.length || !res[0].values.length) return null;
+
+  const fields: string[] = [];
+  const params: any[] = [];
+
+  if (updates.requirementName !== undefined) {
+    fields.push('requirementName = ?');
+    params.push(updates.requirementName);
+  }
+  if (updates.requirementCode !== undefined) {
+    fields.push('requirementCode = ?');
+    params.push(updates.requirementCode);
+  }
+  if (updates.isRequired !== undefined) {
+    fields.push('isRequired = ?');
+    params.push(updates.isRequired ? 1 : 0);
+  }
+  if (updates.weight !== undefined) {
+    fields.push('weight = ?');
+    params.push(updates.weight);
+  }
+  if (updates.minThreshold !== undefined) {
+    fields.push('minThreshold = ?');
+    params.push(String(updates.minThreshold));
+  }
+  if (updates.customRuleDescription !== undefined) {
+    fields.push('customRuleDescription = ?');
+    params.push(updates.customRuleDescription);
+  }
+  if (updates.issuingAuthority !== undefined) {
+    fields.push('issuingAuthority = ?');
+    params.push(updates.issuingAuthority);
+  }
+  if (updates.formatRequired !== undefined) {
+    fields.push('formatRequired = ?');
+    params.push(updates.formatRequired);
+  }
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    params.push(updates.status);
+    if (updates.status === 'APPROVED') {
+      fields.push('officerApproved = ?');
+      params.push(1);
+    } else if (updates.status === 'REJECTED') {
+      fields.push('officerApproved = ?');
+      params.push(0);
+    }
+  }
+  if (updates.officerApproved !== undefined) {
+    fields.push('officerApproved = ?');
+    params.push(updates.officerApproved ? 1 : 0);
+  }
+  if (updates.approvedBy !== undefined) {
+    fields.push('approvedBy = ?');
+    params.push(updates.approvedBy);
+  }
+  if (updates.approvedAt !== undefined) {
+    fields.push('approvedAt = ?');
+    params.push(updates.approvedAt);
+  }
+
+  if (fields.length > 0) {
+    params.push(reqId);
+    database.run(`UPDATE tender_requirements SET ${fields.join(', ')} WHERE id = ?`, params);
+    saveDb();
+  }
+
+  const updatedRes = database.exec(`SELECT * FROM tender_requirements WHERE id = '${reqId}'`);
+  if (!updatedRes.length || !updatedRes[0].values.length) return null;
+  const cols = updatedRes[0].columns;
+  const obj: any = {};
+  cols.forEach((c, idx) => (obj[c] = updatedRes[0].values[0][idx]));
+  obj.isRequired = Boolean(obj.isRequired);
+  obj.officerApproved = obj.officerApproved !== 0;
+  return obj as TenderRequirement;
+}
+
+export async function publishTenderRuleset(
+  tenderId: string,
+  officerName: string = 'Authorized Procurement Officer'
+): Promise<Tender> {
+  const database = await getDb();
+  const tender = await getTenderById(tenderId);
+  if (!tender) throw new Error(`Tender ${tenderId} not found.`);
+
+  const newVersion = (tender.rulesetVersion || 1) + 1;
+  const now = new Date().toISOString();
+
+  // 1. Increment tender rulesetVersion
+  database.run(
+    `UPDATE tenders SET rulesetVersion = ?, rulesetPublishedAt = ?, rulesetPublishedBy = ?, updatedAt = ? WHERE id = ?`,
+    [newVersion, now, officerName, now, tender.id]
+  );
+
+  // 2. Mark all approved requirements with new version and lock them
+  database.run(
+    `UPDATE tender_requirements SET version = ?, officerApproved = 1, approvedBy = ?, approvedAt = ? WHERE tenderId = ? AND status = 'APPROVED'`,
+    [newVersion, officerName, now, tender.id]
+  );
+
+  saveDb();
+
+  // 3. Re-evaluate all bids for this tender using the newly approved ruleset!
+  const bidsRes = database.exec(`SELECT id FROM bids WHERE tenderId = '${tender.id}'`);
+  if (bidsRes.length && bidsRes[0].values.length) {
+    for (const row of bidsRes[0].values) {
+      const bId = String(row[0]);
+      try {
+        await rerunVerificationAndCompliance(bId);
+      } catch (err) {
+        console.warn(`Error re-evaluating bid ${bId} after ruleset publication:`, err);
+      }
+    }
+  }
+
+  return (await getTenderById(tender.id))!;
 }
 
 export async function getBidsList(tenderId?: string): Promise<Bid[]> {
@@ -1104,17 +1384,51 @@ export async function getBidFullDetails(bidId: string): Promise<Bid | null> {
     bidObj.auditLogs = [];
   }
 
-  // Cross Verification Report
+  // Cross Verification Report, Three-Way Reconciliation & Cross-Doc Consistency
   if (bidObj.tender && bidObj.tender.requirements) {
     try {
-      bidObj.crossVerificationReport = execute3WayCrossVerification(
+      bidObj.crossVerificationReport = await execute3WayCrossVerification(
         bidObj as Bid,
         bidObj.tender.requirements,
         bidObj.documents || []
       );
+      bidObj.threeWayReconciliations = await executeThreeWayReconciliation(
+        bidObj as Bid,
+        bidObj.tender.requirements,
+        bidObj.documents || [],
+        bidObj.crossVerificationReport
+      );
+      bidObj.crossDocConsistency = evaluateCrossDocumentConsistency(
+        bidObj as Bid,
+        bidObj.documents || []
+      );
     } catch (e) {
-      console.error('Error generating crossVerificationReport:', e);
+      console.error('Error generating cross verification or reconciliation:', e);
     }
+  }
+
+  // Evaluation Runs History
+  try {
+    const runsRes = database.exec(
+      `SELECT * FROM evaluation_runs WHERE bidId = '${bidObj.id}' ORDER BY timestamp DESC`
+    );
+    if (runsRes.length && runsRes[0].values.length) {
+      const rCols = runsRes[0].columns;
+      bidObj.evaluationRuns = runsRes[0].values.map((row) => {
+        const r: any = {};
+        rCols.forEach((c, idx) => (r[c] = row[idx]));
+        if (r.snapshotJson) {
+          try {
+            r.snapshot = JSON.parse(r.snapshotJson);
+          } catch (e) {}
+        }
+        return r as EvaluationRun;
+      });
+    } else {
+      bidObj.evaluationRuns = [];
+    }
+  } catch (e) {
+    bidObj.evaluationRuns = [];
   }
 
   return bidObj as Bid;
@@ -1232,7 +1546,9 @@ export async function rerunVerificationAndCompliance(bidId: string): Promise<Bid
   database.run(`DELETE FROM ai_recommendations WHERE bidId = '${bidId}'`);
 
   // Execute 3-way cross verification across Document data, Govt Simulator, and Tender requirement
-  const crossReport = execute3WayCrossVerification(bid, reqs, docs);
+  const crossReport = await execute3WayCrossVerification(bid, reqs, docs);
+  const threeWayReconciliations = await executeThreeWayReconciliation(bid, reqs, docs, crossReport);
+  const crossDocConsistency = evaluateCrossDocumentConsistency(bid, docs);
   const verifs: Verification[] = [];
 
   for (const item of crossReport.items) {
@@ -1256,13 +1572,26 @@ export async function rerunVerificationAndCompliance(bidId: string): Promise<Bid
     );
   }
 
-  // Deterministic evaluation
+  // Deterministic evaluation consuming 3-Way Reconciliation results
   const { checks, assessment } = evaluateBidCompliance({
     bid,
     requirements: reqs,
     documents: docs,
     verifications: verifs,
+    reconciliations: threeWayReconciliations,
   });
+
+  // Factor in severe cross-document inconsistencies
+  if (crossDocConsistency.overallStatus === 'HIGH_RISK_INCONSISTENCIES') {
+    const flagMsg = `Cross-document consistency engine detected ${crossDocConsistency.inconsistencies.length} critical contradiction(s) across bidder documents.`;
+    if (!assessment.criticalFlags.includes(flagMsg)) {
+      assessment.criticalFlags.push(flagMsg);
+    }
+    if (assessment.overallScore > 35) {
+      assessment.overallScore = Math.max(20, assessment.overallScore - 20);
+    }
+    assessment.riskLevel = 'HIGH';
+  }
 
   for (const c of checks) {
     database.run(
@@ -1287,6 +1616,42 @@ export async function rerunVerificationAndCompliance(bidId: string): Promise<Bid
     `INSERT INTO ai_recommendations (id, bidId, recommendation, reasoningText, criticalIssuesJson, missingRequirementsJson, recommendedActionsJson, modelUsed, disclaimerText, generatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [rec.id, rec.bidId, rec.recommendation, rec.reasoningText, JSON.stringify(rec.criticalIssues), JSON.stringify(rec.missingRequirements), JSON.stringify(rec.recommendedActions), rec.modelUsed, rec.disclaimerText, rec.generatedAt]
   );
+
+  // Persist Immutable Evaluation Run
+  const evalRunId = `run-${bid.id}-${Date.now()}`;
+  const runTimestamp = new Date().toISOString();
+  try {
+    database.run(
+      `INSERT INTO evaluation_runs (id, bidId, tenderId, rulesetVersion, evaluatorName, evaluatorRole, overallScore, riskLevel, status, timestamp, complianceChecksCount, passedChecksCount, failedChecksCount, criticalFlagsCount, aiRecommendation, officerDecision, snapshotJson) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        evalRunId,
+        bid.id,
+        bid.tenderId,
+        1,
+        'Procurement Compliance Engine (Automated)',
+        'SYSTEM',
+        assessment.overallScore,
+        assessment.riskLevel,
+        assessment.overallScore >= 75 ? 'COMPLIANT' : assessment.overallScore >= 50 ? 'REVIEW_REQUIRED' : 'NON_COMPLIANT',
+        runTimestamp,
+        checks.length,
+        assessment.passedChecksCount,
+        assessment.failedChecksCount,
+        assessment.criticalFlags.length,
+        rec.recommendation,
+        bid.officerDecision?.decision || null,
+        JSON.stringify({
+          checks,
+          assessment,
+          reconciliations: threeWayReconciliations,
+          consistency: crossDocConsistency,
+          crossReportSummary: crossReport.summary,
+        }),
+      ]
+    );
+  } catch (err) {
+    console.error('Error persisting evaluation_run:', err);
+  }
 
   // Audit Log
   database.run(

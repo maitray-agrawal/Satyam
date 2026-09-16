@@ -59,7 +59,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               <span className="font-bold">{bid.tender?.tenderId}</span>
             </div>
             <div className="text-[10px] text-amber-800 font-sans font-bold mt-1 bg-amber-50 py-0.5 border border-amber-200">
-              SIMULATED GOVERNMENT REGISTRY VERIFICATION ENVIRONMENT • GEV-VERIFY PLATFORM
+              SIMULATED GOVERNMENT REGISTRY VERIFICATION ENVIRONMENT • SATYAM PLATFORM (SIH 2026 PS 26100)
             </div>
           </div>
 

@@ -27,7 +27,7 @@ async function startServer() {
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
-      service: 'GEV-VERIFY (GeM Bid Compliance Verification Platform)',
+      service: 'SATYAM (GeM Bid Compliance Verification Platform)',
       version: '1.0.0',
       timestamp: new Date().toISOString(),
     });
@@ -52,10 +52,10 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[GEV-VERIFY] Government Procurement Verification Platform running on http://0.0.0.0:${PORT}`);
+    console.log(`[SATYAM] Government Procurement Verification Platform running on http://0.0.0.0:${PORT}`);
   });
 }
 
 startServer().catch((err) => {
-  console.error('Failed to start GEV-VERIFY server:', err);
+  console.error('Failed to start SATYAM server:', err);
 });

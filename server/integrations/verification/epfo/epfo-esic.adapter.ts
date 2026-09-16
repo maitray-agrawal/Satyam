@@ -2,7 +2,7 @@ import { VerificationAdapter, VerificationInput, VerificationResult } from '../v
 
 export class EpfoVerificationAdapter implements VerificationAdapter {
   readonly serviceName = 'EPFO';
-  readonly supportedRequirementCodes = ['REQ-08', 'EPFO_REGISTRATION', 'PF_COMPLIANCE'];
+  readonly supportedRequirementCodes = ['REQ-08', 'EPFO_REGISTRATION', 'PF_COMPLIANCE', 'EPFO', 'PF'];
 
   async verify(input: VerificationInput): Promise<VerificationResult> {
     const startTime = Date.now();
@@ -33,7 +33,7 @@ export class EpfoVerificationAdapter implements VerificationAdapter {
 
 export class EsicVerificationAdapter implements VerificationAdapter {
   readonly serviceName = 'ESIC';
-  readonly supportedRequirementCodes = ['REQ-09', 'ESIC_REGISTRATION', 'ESI_COMPLIANCE'];
+  readonly supportedRequirementCodes = ['REQ-09', 'ESIC_REGISTRATION', 'ESI_COMPLIANCE', 'ESIC', 'ESI'];
 
   async verify(input: VerificationInput): Promise<VerificationResult> {
     const startTime = Date.now();

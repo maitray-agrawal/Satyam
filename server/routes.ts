@@ -7,6 +7,9 @@ import {
   getTendersList,
   getTenderById,
   createTender,
+  addCandidateRequirementsToTender,
+  updateTenderRequirement,
+  publishTenderRuleset,
   getBidsList,
   getBidFullDetails,
   createBidderAndBid,
@@ -18,7 +21,7 @@ import {
   getAllAuditLogs,
 } from './db';
 import { VerificationSimulators } from './verificationSimulators';
-import { analyzeDocumentWithGemini, queryCopilot } from './gemini';
+import { analyzeDocumentWithGemini, queryCopilot, extractTenderRequirementsWithGemini } from './gemini';
 import { Document, RequirementCode } from './types';
 import { AuthService } from './modules/auth/auth.service';
 import { authMiddleware, requireRole } from './modules/auth/auth.middleware';
@@ -117,6 +120,138 @@ apiRouter.post('/tenders', async (req: Request, res: Response) => {
   }
 });
 
+// PRIORITY 1: Extract candidate eligibility requirements from tender RFP document
+apiRouter.post('/tenders/:id/extract-requirements', upload.single('rfpFile') as any, async (req: Request, res: Response) => {
+  try {
+    const tenderId = req.params.id;
+    const tender = await getTenderById(tenderId);
+    if (!tender) {
+      return res.status(404).json({ error: 'Tender not found' });
+    }
+
+    let fileBase64: string | undefined;
+    let mimeType = 'application/pdf';
+    let fileName = 'tender-rfp.pdf';
+
+    if (req.file) {
+      const buffer = fs.readFileSync(req.file.path);
+      fileBase64 = buffer.toString('base64');
+      mimeType = req.file.mimetype;
+      fileName = req.file.originalname;
+    } else if (req.body.fileBase64) {
+      fileBase64 = req.body.fileBase64;
+      mimeType = req.body.mimeType || 'application/pdf';
+      fileName = req.body.fileName || 'tender-rfp.pdf';
+    }
+
+    const textContent = req.body.textContent || (fileBase64 ? undefined : `${tender.title} - ${tender.description}`);
+
+    const extractionResult = await extractTenderRequirementsWithGemini(
+      {
+        id: tender.id,
+        title: tender.title,
+        department: tender.department,
+        category: tender.category,
+        estimatedValue: tender.estimatedValue,
+      },
+      fileBase64,
+      mimeType,
+      textContent
+    );
+
+    // Save extracted clauses as candidate DRAFT requirements in database
+    const updatedTender = await addCandidateRequirementsToTender(
+      tenderId,
+      extractionResult.clauses,
+      fileName
+    );
+
+    res.json({
+      success: true,
+      extraction: extractionResult,
+      tender: updatedTender,
+    });
+  } catch (err: any) {
+    log.error('Tender requirement extraction failed', { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update or approve/reject a tender requirement
+apiRouter.put('/tenders/requirements/:reqId', async (req: Request, res: Response) => {
+  try {
+    const { reqId } = req.params;
+    const user = (req as any).user;
+    const officerName = user?.name || req.body.officerName || 'Authorized Officer';
+
+    const updates = { ...req.body };
+    if (updates.status === 'APPROVED') {
+      updates.officerApproved = true;
+      updates.approvedBy = officerName;
+      updates.approvedAt = new Date().toISOString();
+    } else if (updates.status === 'REJECTED') {
+      updates.officerApproved = false;
+    }
+
+    const updated = await updateTenderRequirement(reqId, updates);
+    if (!updated) {
+      return res.status(404).json({ error: 'Requirement not found' });
+    }
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add a single custom requirement to a tender
+apiRouter.post('/tenders/:id/requirements', async (req: Request, res: Response) => {
+  try {
+    const tenderId = req.params.id;
+    const user = (req as any).user;
+    const officerName = user?.name || req.body.officerName || 'Authorized Officer';
+
+    const clause = {
+      requirementCode: req.body.requirementCode || 'CUSTOM',
+      requirementName: req.body.requirementName,
+      isRequired: req.body.isRequired !== false,
+      weight: Number(req.body.weight) || 10,
+      minThreshold: req.body.minThreshold ? String(req.body.minThreshold) : undefined,
+      customRuleDescription: req.body.customRuleDescription || req.body.requirementName,
+      issuingAuthority: req.body.issuingAuthority || 'Government of India',
+      formatRequired: req.body.formatRequired || 'Attested Certificate',
+      category: req.body.category || 'STATUTORY',
+      sourceText: req.body.sourceText || 'Manually specified by procurement authority',
+      sourcePage: 1,
+      confidence: 1.0,
+      status: 'APPROVED',
+      officerApproved: true,
+    };
+
+    const updatedTender = await addCandidateRequirementsToTender(tenderId, [clause]);
+    res.status(201).json(updatedTender);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Publish tender ruleset (bumps rulesetVersion, locks approved clauses, and deterministically re-evaluates all bids)
+apiRouter.post('/tenders/:id/publish-ruleset', async (req: Request, res: Response) => {
+  try {
+    const tenderId = req.params.id;
+    const user = (req as any).user;
+    const officerName = user?.name || req.body.officerName || 'Authorized Procurement Officer';
+
+    const updatedTender = await publishTenderRuleset(tenderId, officerName);
+    res.json({
+      success: true,
+      message: `Ruleset version ${updatedTender.rulesetVersion} published. All bids re-evaluated deterministically against approved ruleset.`,
+      tender: updatedTender,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------- BIDS & BIDDERS ----------------
 apiRouter.get('/bids', async (req: Request, res: Response) => {
   try {
@@ -147,6 +282,58 @@ apiRouter.get('/bids/:id/cross-verification', async (req: Request, res: Response
       return res.status(404).json({ error: 'Bid not found' });
     }
     res.json(bid.crossVerificationReport || null);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/bids/:id/reconciliation', async (req: Request, res: Response) => {
+  try {
+    const bid = await getBidFullDetails(req.params.id);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json(bid.threeWayReconciliations || []);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/bids/:id/consistency', async (req: Request, res: Response) => {
+  try {
+    const bid = await getBidFullDetails(req.params.id);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json(bid.crossDocConsistency || null);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/bids/:id/evaluation-runs', async (req: Request, res: Response) => {
+  try {
+    const bid = await getBidFullDetails(req.params.id);
+    if (!bid) {
+      return res.status(404).json({ error: 'Bid not found' });
+    }
+    res.json(bid.evaluationRuns || []);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/integrations/verification/adapters', async (req: Request, res: Response) => {
+  try {
+    const adapters = verificationRegistry.getAllAdapters();
+    res.json({
+      count: adapters.length,
+      adapters: adapters.map((a) => ({
+        adapterId: a.serviceName,
+        serviceName: a.serviceName,
+        supportedCodes: a.supportedRequirementCodes,
+      })),
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -217,7 +404,7 @@ apiRouter.post('/bids/:id/decision', async (req: Request, res: Response) => {
 });
 
 // ---------------- DOCUMENT UPLOADS & GEMINI EXTRACTION ----------------
-apiRouter.post('/documents/upload', upload.single('file'), async (req: Request, res: Response) => {
+apiRouter.post('/documents/upload', upload.single('file') as any, async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -471,7 +658,7 @@ apiRouter.get('/docs', (req: Request, res: Response) => {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GEV-VERIFY API Documentation | OpenAPI 3.0</title>
+  <title>SATYAM API Documentation | OpenAPI 3.0</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css" />
   <style>
     body { margin: 0; background: #fafafa; font-family: sans-serif; }

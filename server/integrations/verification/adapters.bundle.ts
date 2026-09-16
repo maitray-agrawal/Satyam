@@ -37,7 +37,7 @@ export class IncomeTaxVerificationAdapter implements VerificationAdapter {
 
 export class StartupIndiaVerificationAdapter implements VerificationAdapter {
   readonly serviceName = 'STARTUP_INDIA';
-  readonly supportedRequirementCodes = ['REQ-DPIIT', 'STARTUP_DPIIT'];
+  readonly supportedRequirementCodes = ['REQ-07', 'REQ-DPIIT', 'STARTUP_DPIIT', 'STARTUP_INDIA', 'STARTUP'];
 
   async verify(input: VerificationInput): Promise<VerificationResult> {
     const startTime = Date.now();
@@ -67,7 +67,7 @@ export class StartupIndiaVerificationAdapter implements VerificationAdapter {
 
 export class NsicVerificationAdapter implements VerificationAdapter {
   readonly serviceName = 'NSIC';
-  readonly supportedRequirementCodes = ['REQ-NSIC', 'NSIC_CERTIFICATE'];
+  readonly supportedRequirementCodes = ['REQ-NSIC', 'NSIC_CERTIFICATE', 'NSIC'];
 
   async verify(input: VerificationInput): Promise<VerificationResult> {
     const startTime = Date.now();
@@ -97,31 +97,36 @@ export class NsicVerificationAdapter implements VerificationAdapter {
 
 export class OemVerificationAdapter implements VerificationAdapter {
   readonly serviceName = 'OEM';
-  readonly supportedRequirementCodes = ['REQ-06', 'OEM_AUTHORIZATION', 'MAF'];
+  readonly supportedRequirementCodes = ['REQ-06', 'OEM_AUTHORIZATION', 'OEM', 'MAF'];
 
   async verify(input: VerificationInput): Promise<VerificationResult> {
     const startTime = Date.now();
     const authCode = input.documentData?.authCode || input.documentData?.mafNumber || 'CISCO-MAF-2026-9921';
-    const isExpired = input.documentData?.isExpired || false;
+    const isMissingOrExpired = 
+      input.documentData?.isExpired || 
+      input.documentData?.missing || 
+      input.bidderLegalName?.toLowerCase().includes('global quantum') ||
+      !input.documentData?.hasDocument && !input.bidderLegalName?.toLowerCase().includes('techvanguard');
 
     return {
-      requirementCode: input.requirementCode || 'REQ-06',
+      requirementCode: input.requirementCode || 'OEM_AUTHORIZATION',
       serviceType: 'OEM',
       apiEndpoint: 'https://partnerportal.cisco.com/api/v3/auth/verify-maf',
       simulated: true,
-      simulationNotice: 'DEMO / SIMULATED GOVERNMENT DATA',
-      matchStatus: isExpired ? 'MISMATCH' : 'VERIFIED',
-      confidenceScore: isExpired ? 0.4 : 0.98,
-      evidenceDetails: isExpired
-        ? `OEM Manufacturer Authorization Form ${authCode} is EXPIRED or revoked by OEM.`
-        : `OEM Manufacturer Authorization Code ${authCode} verified on Global OEM Partner Database. Confirmed 24x7 back-to-back warranty support SLA.`,
+      verificationMode: input.verificationMode || 'SIMULATED',
+      simulationNotice: 'DEMO / SIMULATED OEM PARTNER REGISTRY',
+      matchStatus: isMissingOrExpired ? 'MISMATCH' : 'VERIFIED',
+      confidenceScore: isMissingOrExpired ? 0.35 : 0.98,
+      evidenceDetails: isMissingOrExpired
+        ? `OEM Manufacturer Authorization Form (MAF) is MISSING or EXPIRED. No valid back-to-back warranty commitment recorded by OEM.`
+        : `OEM Manufacturer Authorization Code verified on Global OEM Partner Database. Confirmed 24x7 back-to-back warranty support SLA for tender reference.`,
       verifiedData: {
         oemEntity: 'Global Hardware & Systems OEM',
-        tenderSpecificReference: 'GeM/2026/B/894218',
-        authorizationStatus: isExpired ? 'EXPIRED' : 'VALID_ACTIVE',
-        warrantyCoverageYears: 5,
+        tenderSpecificReference: 'GeM/2026/B/894201',
+        authorizationStatus: isMissingOrExpired ? 'EXPIRED_OR_NOT_ISSUED' : 'VALID_ACTIVE',
+        warrantyCoverageYears: isMissingOrExpired ? 0 : 5,
       },
-      discrepancies: isExpired ? ['OEM authorization form is expired or unconfirmed by OEM partner portal'] : [],
+      discrepancies: isMissingOrExpired ? ['Valid OEM authorization form not verified or expired'] : [],
       latencyMs: Date.now() - startTime,
       timestamp: new Date().toISOString(),
     };
@@ -130,19 +135,26 @@ export class OemVerificationAdapter implements VerificationAdapter {
 
 export class BlacklistVerificationAdapter implements VerificationAdapter {
   readonly serviceName = 'BLACKLIST';
-  readonly supportedRequirementCodes = ['REQ-10', 'DEBARMENT_CHECK', 'BLACKLIST_STATUS'];
+  readonly supportedRequirementCodes = ['REQ-10', 'BLACKLISTING', 'DEBARMENT_CHECK', 'BLACKLIST_STATUS', 'BLACKLIST'];
 
   async verify(input: VerificationInput): Promise<VerificationResult> {
     const startTime = Date.now();
     const pan = input.bidderPan || 'AABCU9603R';
-    const isBlacklisted = (input.documentData?.isBlacklisted || input.bidderLegalName?.toLowerCase().includes('apex')) ?? false;
+    const isBlacklisted = 
+      input.documentData?.isBlacklisted || 
+      input.bidderLegalName?.toLowerCase().includes('apex') || 
+      input.bidderLegalName?.toLowerCase().includes('global quantum') ||
+      input.bidderPan === 'AAACG9999K' ||
+      input.bidderPan === 'AAACO4444N' ||
+      input.bidderPan === 'AABCA1234F';
 
     return {
-      requirementCode: input.requirementCode || 'REQ-10',
+      requirementCode: input.requirementCode || 'BLACKLISTING',
       serviceType: 'BLACKLIST',
       apiEndpoint: 'https://eprocure.gov.in/cppp/debarredbidders/api/v1/search',
       simulated: true,
-      simulationNotice: 'DEMO / SIMULATED GOVERNMENT DATA',
+      verificationMode: input.verificationMode || 'SIMULATED',
+      simulationNotice: 'DEMO / SIMULATED CENTRAL DEBARMENT DATABASE',
       matchStatus: isBlacklisted ? 'FLAGGED' : 'VERIFIED',
       confidenceScore: 0.99,
       evidenceDetails: isBlacklisted
@@ -150,11 +162,123 @@ export class BlacklistVerificationAdapter implements VerificationAdapter {
         : `No active debarment or blacklisting orders detected on Central Public Procurement Portal (CPPP), GeM Incidents Repository, Ministry of Finance Debarred Database, or State Vigilance Commissions.`,
       verifiedData: {
         panChecked: pan,
+        isBlacklisted: !!isBlacklisted,
         cpppDebarredStatus: isBlacklisted ? 'DEBARRED' : 'CLEAR',
         gemIncidentHistory: isBlacklisted ? '1 ACTIVE DEBARMENT ORDER' : '0 Adverse Notices',
         debarmentReason: isBlacklisted ? 'Non-delivery & Breach of Statutory Warranty in Ministry of Defence tender' : null,
       },
       discrepancies: isBlacklisted ? ['Active Debarment order on CPPP under GFR Rule 151(iii) - Automatic Disqualification'] : [],
+      latencyMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+export class MakeInIndiaVerificationAdapter implements VerificationAdapter {
+  readonly serviceName = 'MAKE_IN_INDIA';
+  readonly supportedRequirementCodes = ['REQ-08', 'MAKE_IN_INDIA', 'MII', 'LOCAL_CONTENT'];
+
+  async verify(input: VerificationInput): Promise<VerificationResult> {
+    const startTime = Date.now();
+    const company = input.bidderLegalName || '';
+    const declaredContent = input.documentData?.localContent || 50;
+
+    // Detect scenario 2: Bharat Electro claims 65% but audit reveals only 38%
+    const isBharatElectro = company.toUpperCase().includes('BHARAT ELECTRO');
+    const auditedContent = isBharatElectro ? 38.0 : declaredContent;
+    const isMismatch = isBharatElectro;
+
+    const supplierClass = auditedContent >= 50 ? 'Class-I Local Supplier (>= 50%)' : auditedContent >= 20 ? 'Class-II Local Supplier (20% to <50%)' : 'Non-Local Supplier (< 20%)';
+
+    return {
+      requirementCode: input.requirementCode || 'MAKE_IN_INDIA',
+      serviceType: 'MAKE_IN_INDIA',
+      apiEndpoint: 'https://dpiit.gov.in/publicprocurement/mii-verification',
+      simulated: true,
+      verificationMode: input.verificationMode || 'SIMULATED',
+      simulationNotice: 'DEMO / SIMULATED DPIIT MII VERIFICATION',
+      matchStatus: isMismatch ? 'MISMATCH' : 'VERIFIED',
+      confidenceScore: isMismatch ? 0.6 : 0.96,
+      evidenceDetails: isMismatch
+        ? `DISCREPANCY DETECTED: Bidder self-declaration claimed ${declaredContent}% local content, but statutory supply-chain audit on DPIIT portal confirms only ${auditedContent}%. Classified as ${supplierClass}.`
+        : `Local Content of ${auditedContent}% verified under Public Procurement (Preference to Make in India) Order 2017. Verified Class: ${supplierClass}. Valid CA UDIN attested.`,
+      verifiedData: {
+        declaredLocalContent: declaredContent,
+        verifiedLocalContent: auditedContent,
+        supplierClassification: supplierClass,
+        caUdinVerified: !isMismatch,
+        dpiitComplianceOrder: 'P-45021/2/2017-PP(BE-II) dated 16.09.2020',
+      },
+      discrepancies: isMismatch ? [`Local content discrepancy: Declared ${declaredContent}%, Verified ${auditedContent}%`] : [],
+      latencyMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+export class McaVerificationAdapter implements VerificationAdapter {
+  readonly serviceName = 'MCA';
+  readonly supportedRequirementCodes = ['REQ-MCA', 'MCA', 'CIN', 'COMPANY_MASTER_DATA'];
+
+  async verify(input: VerificationInput): Promise<VerificationResult> {
+    const startTime = Date.now();
+    const cin = input.bidderCin || input.documentData?.cinNumber || 'U72900DL2018PTC331940';
+    const legalName = input.bidderLegalName || 'ENTERPRISE LIMITED';
+
+    return {
+      requirementCode: input.requirementCode || 'MCA',
+      serviceType: 'MCA',
+      apiEndpoint: 'https://www.mca.gov.in/mcafoportal/companyMasterData.do',
+      simulated: true,
+      verificationMode: input.verificationMode || 'SIMULATED',
+      simulationNotice: 'DEMO / SIMULATED MINISTRY OF CORPORATE AFFAIRS REGISTRY',
+      matchStatus: 'VERIFIED',
+      confidenceScore: 0.98,
+      evidenceDetails: `Company Master Data verified on MCA21 portal. CIN: ${cin}. Company status: Active. Authorized Capital & Director DIN verified with no disqualifications under Section 164(2).`,
+      verifiedData: {
+        cin,
+        companyName: legalName,
+        rocCode: 'ROC Delhi',
+        registrationNumber: '331940',
+        companyCategory: 'Company limited by Shares',
+        companySubCategory: 'Non-govt company',
+        classOfCompany: 'Private',
+        dateOfIncorporation: '2018-04-12',
+        activeComplianceStatus: 'ACTIVE',
+      },
+      discrepancies: [],
+      latencyMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
+  }
+}
+
+export class DigiLockerManualAdapter implements VerificationAdapter {
+  readonly serviceName = 'DIGILOCKER';
+  readonly supportedRequirementCodes = ['REQ-DIGILOCKER', 'DIGILOCKER', 'MANUAL_EVIDENCE'];
+
+  async verify(input: VerificationInput): Promise<VerificationResult> {
+    const startTime = Date.now();
+    const docName = input.documentData?.fileName || 'Document Evidence';
+
+    return {
+      requirementCode: input.requirementCode || 'DIGILOCKER',
+      serviceType: 'DIGILOCKER',
+      apiEndpoint: 'https://api.digitallocker.gov.in/public/oauth2/1/xml/pull',
+      simulated: true,
+      verificationMode: input.verificationMode || 'MANUAL_EVIDENCE',
+      simulationNotice: 'DEMO / SIMULATED DIGILOCKER VERIFIED REPOSITORY',
+      matchStatus: 'VERIFIED',
+      confidenceScore: 0.95,
+      evidenceDetails: `DigiLocker verified document XML schema parsed. Cryptographic timestamp and issuing authority digital signature validated.`,
+      verifiedData: {
+        issuerUri: 'in.gov.gem.docstore',
+        documentTitle: docName,
+        digitalSignatureStatus: 'CRYPTOGRAPHICALLY_VALID',
+        hashAlgorithm: 'SHA-256',
+        issuanceTimestamp: new Date().toISOString(),
+      },
+      discrepancies: [],
       latencyMs: Date.now() - startTime,
       timestamp: new Date().toISOString(),
     };

@@ -9,6 +9,7 @@ import {
   Verification,
 } from './types';
 import { VerificationSimulators, GovtApiResponse } from './verificationSimulators';
+import { initializeVerificationRegistry } from './integrations/verification';
 
 export interface ComparisonFieldItem {
   fieldName: string;
@@ -102,12 +103,13 @@ export interface CrossVerificationReport {
  * 2. Simulated government portal API response
  * 3. Tender requirement specification & threshold
  */
-export function execute3WayCrossVerification(
+export async function execute3WayCrossVerification(
   bid: Bid,
   requirements: TenderRequirement[],
   documents: Document[]
-): CrossVerificationReport {
+): Promise<CrossVerificationReport> {
   const bidder = bid.bidder;
+  const registry = initializeVerificationRegistry();
   const items: CrossVerificationResultItem[] = [];
 
   let matchedCount = 0;
@@ -181,8 +183,28 @@ export function execute3WayCrossVerification(
         const docTradeName = getFieldVal('trade', bidder?.tradeName || '');
         const docRegDate = getFieldVal('date', '');
 
-        // Query Simulated GSTN Portal
-        portalRes = VerificationSimulators.verifyGst(docGstin || bidder?.gstin || '');
+        // Query via Centralized Adapter Registry
+        const adapter = registry.getAdapter('GST');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'GST',
+            bidId: bid.id,
+            bidderGstin: docGstin || bidder?.gstin || '',
+            bidderLegalName: docLegalName || bidder?.legalName || '',
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Government Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { gstin: docGstin || bidder?.gstin || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyGst(docGstin || bidder?.gstin || '');
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -260,7 +282,28 @@ export function execute3WayCrossVerification(
         const docLegalName = getFieldVal('legal', bidder?.legalName || '');
         const docCategory = getFieldVal('category', '');
 
-        portalRes = VerificationSimulators.verifyPan(docPan || bidder?.pan || '');
+        // Query via Centralized Adapter Registry
+        const adapter = registry.getAdapter('PAN');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'PAN',
+            bidId: bid.id,
+            bidderPan: docPan || bidder?.pan || '',
+            bidderLegalName: docLegalName || bidder?.legalName || '',
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Government Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { pan: docPan || bidder?.pan || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyPan(docPan || bidder?.pan || '');
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -324,7 +367,27 @@ export function execute3WayCrossVerification(
         const docType = getFieldVal('enterprise', 'Small');
         const docActivity = getFieldVal('activity', '');
 
-        portalRes = VerificationSimulators.verifyUdyam(docUdyam || bidder?.udyamNumber || '');
+        const adapter = registry.getAdapter('UDYAM');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'UDYAM',
+            bidId: bid.id,
+            bidderLegalName: bidder?.legalName || '',
+            documentData: { udyamNumber: docUdyam || bidder?.udyamNumber || '' },
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { udyamNumber: docUdyam || bidder?.udyamNumber || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyUdyam(docUdyam || bidder?.udyamNumber || '');
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -371,7 +434,28 @@ export function execute3WayCrossVerification(
         ).toFixed(1)} Cr; CA Tax Audit Report verified.`;
 
         const panQuery = bidder?.pan || getFieldVal('pan', '');
-        portalRes = VerificationSimulators.verifyIncomeTax(panQuery);
+        const adapter = registry.getAdapter('INCOME_TAX');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'INCOME_TAX',
+            bidId: bid.id,
+            bidderPan: panQuery,
+            bidderLegalName: bidder?.legalName || '',
+            tenderRequirements: [{ requirementCode: 'INCOME_TAX', minThreshold: minTurnover }],
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { pan: panQuery },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyIncomeTax(panQuery);
+        }
         const pData = portalRes.data || {};
 
         const docTurnover1 = getFieldVal('2024', getFieldVal('turnover', ''));
@@ -433,7 +517,26 @@ export function execute3WayCrossVerification(
         const docEst = getFieldVal('establishment', bidder?.epfEstCode || '');
         const docSubscribers = getFieldVal('subscriber', '');
 
-        portalRes = VerificationSimulators.verifyEpfo(docEst || bidder?.epfEstCode, bidder?.pan);
+        const adapter = registry.getAdapter('EPFO');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'EPFO',
+            bidId: bid.id,
+            documentData: { epfoNumber: docEst || bidder?.epfEstCode || '' },
+          });
+          portalRes = {
+            status: 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { establishmentCode: docEst || bidder?.epfEstCode || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyEpfo(docEst || bidder?.epfEstCode, bidder?.pan);
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -486,7 +589,26 @@ export function execute3WayCrossVerification(
           'Rule: Active ESIC Employer Code with contributions paid, or statutory micro-enterprise exemption if headcount <10 employees.';
         const docCode = getFieldVal('esic', bidder?.esicCode || '');
 
-        portalRes = VerificationSimulators.verifyEsic(docCode || bidder?.esicCode, bidder?.pan);
+        const adapter = registry.getAdapter('ESIC');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'ESIC',
+            bidId: bid.id,
+            documentData: { esicNumber: docCode || bidder?.esicCode || '' },
+          });
+          portalRes = {
+            status: 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { employerCode: docCode || bidder?.esicCode || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyEsic(docCode || bidder?.esicCode, bidder?.pan);
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -533,7 +655,26 @@ export function execute3WayCrossVerification(
           'Rule: DPIIT Recognized Startup Certificate; Valid within 10 years of incorporation; Eligibility for prior turnover & experience exemptions on GeM.';
         const docDpiit = getFieldVal('dpiit', bidder?.startupDpiitNumber || '');
 
-        portalRes = VerificationSimulators.verifyStartup(docDpiit || bidder?.startupDpiitNumber || '');
+        const adapter = registry.getAdapter('STARTUP_INDIA');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'STARTUP_INDIA',
+            bidId: bid.id,
+            documentData: { dppitNumber: docDpiit || bidder?.startupDpiitNumber || '' },
+          });
+          portalRes = {
+            status: 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { dppitNumber: docDpiit || bidder?.startupDpiitNumber || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyStartup(docDpiit || bidder?.startupDpiitNumber || '');
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -578,7 +719,26 @@ export function execute3WayCrossVerification(
           'Rule: NSIC Single Point Registration valid on tender closing date; Stores category matching tender items; Monetary limit covering quote.';
         const docNsic = getFieldVal('nsic', bidder?.nsicRegNumber || '');
 
-        portalRes = VerificationSimulators.verifyNsic(docNsic || bidder?.nsicRegNumber || '');
+        const adapter = registry.getAdapter('NSIC');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'NSIC',
+            bidId: bid.id,
+            documentData: { nsicNumber: docNsic || bidder?.nsicRegNumber || '' },
+          });
+          portalRes = {
+            status: 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { nsicNumber: docNsic || bidder?.nsicRegNumber || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyNsic(docNsic || bidder?.nsicRegNumber || '');
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -621,7 +781,27 @@ export function execute3WayCrossVerification(
         const docAuthCode = getFieldVal('auth', getFieldVal('code', ''));
         const docTenderRef = getFieldVal('tender', '');
 
-        portalRes = VerificationSimulators.verifyOem(docOem || bidder?.oemName, docAuthCode);
+        const adapter = registry.getAdapter('OEM_AUTHORIZATION');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'OEM_AUTHORIZATION',
+            bidId: bid.id,
+            bidderLegalName: bidder?.legalName || '',
+            documentData: { mafNumber: docAuthCode, authCode: docAuthCode, oemName: docOem || bidder?.oemName, missing: !doc },
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { oemEntity: docOem || bidder?.oemName || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyOem(docOem || bidder?.oemName, docAuthCode);
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -683,7 +863,28 @@ export function execute3WayCrossVerification(
           'Rule: Zero tolerance. Bidder (PAN/GSTIN/Entity) must NOT be under active debarment or blacklisting order on GeM, CPPP, or Ministry repositories. Sworn Non-Debarment Affidavit required.';
         const docAffidavit = getFieldVal('affidavit', getFieldVal('undertaking', ''));
 
-        portalRes = VerificationSimulators.verifyBlacklist(bidder?.pan, bidder?.gstin, bidder?.legalName);
+        const adapter = registry.getAdapter('BLACKLISTING');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'BLACKLISTING',
+            bidId: bid.id,
+            bidderPan: bidder?.pan || '',
+            bidderGstin: bidder?.gstin || '',
+            bidderLegalName: bidder?.legalName || '',
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { pan: bidder?.pan || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyBlacklist(bidder?.pan, bidder?.gstin, bidder?.legalName);
+        }
         const pData = portalRes.data || {};
 
         comparisonMatrix.push({
@@ -727,9 +928,29 @@ export function execute3WayCrossVerification(
         const minThreshold = typeof req.minThreshold === 'number' ? req.minThreshold : 50;
         deterministicRule = `Rule: Local Content must be >= ${minThreshold}% with CA Certificate & Valid UDIN (Public Procurement Order 2017).`;
 
-        portalRes = VerificationSimulators.verifyMii(bidder?.legalName || '');
-        const pData = portalRes.data || {};
         const claimedPct = bidder?.localContentPercentage ?? 0;
+        const adapter = registry.getAdapter('MAKE_IN_INDIA');
+        if (adapter) {
+          const vResult = await adapter.verify({
+            requirementCode: 'MAKE_IN_INDIA',
+            bidId: bid.id,
+            bidderLegalName: bidder?.legalName || '',
+            documentData: { localContent: claimedPct },
+          });
+          portalRes = {
+            status: vResult.matchStatus === 'NOT_FOUND' ? 'NOT_FOUND' : 'SUCCESS',
+            disclaimer: vResult.simulationNotice,
+            sourcePortal: `${adapter.serviceName} Registry (${vResult.verificationMode || 'SIMULATED'})`,
+            queryParameters: { enterprise: bidder?.legalName || '' },
+            timestamp: vResult.timestamp,
+            isSimulated: vResult.simulated,
+            data: vResult.verifiedData,
+            message: vResult.evidenceDetails,
+          };
+        } else {
+          portalRes = VerificationSimulators.verifyMii(bidder?.legalName || '');
+        }
+        const pData = portalRes.data || {};
         const docUdin = getFieldVal('udin', '');
 
         comparisonMatrix.push({

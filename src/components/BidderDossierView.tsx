@@ -34,6 +34,8 @@ import {
   Layers,
   FileSpreadsheet,
   ShieldCheck,
+  History,
+  GitCompare,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -45,6 +47,9 @@ import {
   ComplianceCheck,
   Verification,
 } from '../types';
+import { ThreeWayReconciliationTab } from './ThreeWayReconciliationTab';
+import { CrossDocumentConsistencyTab } from './CrossDocumentConsistencyTab';
+import { EvaluationRunsTab } from './EvaluationRunsTab';
 
 interface BidderDossierViewProps {
   bid: Bid;
@@ -62,7 +67,15 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
   onPrintReport,
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<
-    'overview' | 'documents' | 'verifications' | 'compliance' | 'ai-copilot' | 'decision'
+    | 'overview'
+    | 'documents'
+    | 'verifications'
+    | 'reconciliation'
+    | 'consistency'
+    | 'compliance'
+    | 'runs'
+    | 'ai-copilot'
+    | 'decision'
   >('overview');
 
   // File Upload State
@@ -553,6 +566,44 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
           </button>
 
           <button
+            id="subtab-reconciliation"
+            onClick={() => setActiveSubTab('reconciliation')}
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              activeSubTab === 'reconciliation'
+                ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <GitCompare className="w-3.5 h-3.5 text-blue-600" />
+            <span>4. 3-Way Reconciliation</span>
+            <span className="bg-blue-100 text-blue-800 text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+              {bid.threeWayReconciliations?.length || 0}
+            </span>
+          </button>
+
+          <button
+            id="subtab-consistency"
+            onClick={() => setActiveSubTab('consistency')}
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              activeSubTab === 'consistency'
+                ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5 text-indigo-600" />
+            <span>5. Cross-Doc Consistency</span>
+            {bid.crossDocConsistency && bid.crossDocConsistency.inconsistencies.length > 0 ? (
+              <span className="bg-rose-100 text-rose-800 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                {bid.crossDocConsistency.inconsistencies.length} Flaws
+              </span>
+            ) : (
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.2 rounded-full">
+                OK
+              </span>
+            )}
+          </button>
+
+          <button
             id="subtab-compliance"
             onClick={() => setActiveSubTab('compliance')}
             className={`py-3 px-4 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
@@ -561,7 +612,23 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            4. Deterministic Rule Breakdown
+            6. Rule Breakdown
+          </button>
+
+          <button
+            id="subtab-runs"
+            onClick={() => setActiveSubTab('runs')}
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all whitespace-nowrap flex items-center space-x-1.5 ${
+              activeSubTab === 'runs'
+                ? 'border-slate-800 text-slate-900 bg-slate-100'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <History className="w-3.5 h-3.5 text-slate-600" />
+            <span>7. Evaluation Runs</span>
+            <span className="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+              {bid.evaluationRuns?.length || 0}
+            </span>
           </button>
 
           <button
@@ -574,7 +641,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>5. AI Advisory & Copilot</span>
+            <span>8. AI Advisory</span>
           </button>
 
           <button
@@ -587,7 +654,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
             }`}
           >
             <Award className="w-3.5 h-3.5" />
-            <span>6. Officer Decision Board</span>
+            <span>9. Officer Decision</span>
           </button>
         </div>
       </div>
@@ -2653,6 +2720,112 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               </div>
             )}
 
+            {/* 5-Step Officer Verification & Decision Architecture */}
+            <div className="space-y-4 mb-6">
+              {/* Step 1: AI Advisory */}
+              <div className="bg-purple-50/60 p-4 rounded-xl border border-purple-200">
+                <div className="flex items-center justify-between text-xs font-bold text-purple-900 mb-1">
+                  <span className="flex items-center space-x-1.5">
+                    <Sparkles className="w-4 h-4 text-purple-600" />
+                    <span className="uppercase tracking-wider">1. AI Advisory Recommendation</span>
+                  </span>
+                  <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-mono text-[10px]">
+                    ADVISORY ONLY • NON-BINDING
+                  </span>
+                </div>
+                <div className="text-xs text-purple-950 font-semibold mt-1">
+                  Recommendation: {bid.aiRecommendation?.recommendation || 'UNDER REVIEW'} (Confidence: {Math.round((bid.aiRecommendation?.confidence || 0.85) * 100)}%)
+                </div>
+                <p className="text-xs text-purple-900 mt-1 leading-relaxed">
+                  {bid.aiRecommendation?.reasoning || 'No probabilistic AI advisory available for this submission.'}
+                </p>
+              </div>
+
+              {/* Step 2: Deterministic Compliance */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1">
+                  <span className="flex items-center space-x-1.5">
+                    <Scale className="w-4 h-4 text-teal-600" />
+                    <span className="uppercase tracking-wider">2. Deterministic Compliance Evaluation</span>
+                  </span>
+                  <span className="bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded font-mono text-[10px] font-bold">
+                    GFR 2017 RULE 144
+                  </span>
+                </div>
+                <div className="flex items-center space-x-4 mt-2">
+                  <div className="text-2xl font-black font-mono text-slate-900">
+                    {bid.overallScore ?? '--'} <span className="text-xs font-normal text-slate-500">/ 100 pts</span>
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Computed deterministically via business logic algorithms. Passed checks:{' '}
+                    <span className="font-bold text-emerald-700">{bid.riskAssessment?.passedChecksCount ?? 0}</span>, Failed / Discrepancies:{' '}
+                    <span className="font-bold text-rose-700">{bid.riskAssessment?.failedChecksCount ?? 0}</span>.
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 3: Risk Assessment */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1">
+                  <span className="flex items-center space-x-1.5">
+                    <ShieldAlert className="w-4 h-4 text-orange-600" />
+                    <span className="uppercase tracking-wider">3. Evaluated Risk Level</span>
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                      bid.riskLevel === 'LOW'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : bid.riskLevel === 'MEDIUM'
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : bid.riskLevel === 'HIGH'
+                        ? 'bg-orange-50 text-orange-800 border border-orange-200'
+                        : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    }`}
+                  >
+                    {bid.riskLevel || 'EVALUATING'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  {bid.riskAssessment?.criticalFlags && bid.riskAssessment.criticalFlags.length > 0
+                    ? `Critical flags flagged: ${bid.riskAssessment.criticalFlags.join('; ')}`
+                    : 'No critical disqualification or registry blacklisting detected.'}
+                </p>
+              </div>
+
+              {/* Step 4: Triangulated Evidence Summary */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-800 mb-1">
+                  <span className="flex items-center space-x-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    <span className="uppercase tracking-wider">4. Triangulated Evidence Summary</span>
+                  </span>
+                  <span className="text-slate-500 font-mono text-[10px]">
+                    {bid.threeWayReconciliations?.length || 0} Criteria Reconciled
+                  </span>
+                </div>
+                <div className="text-xs text-slate-600 mt-1">
+                  Three-way reconciliation against 13 statutory registries confirms{' '}
+                  <span className="font-bold text-emerald-700">
+                    {bid.threeWayReconciliations?.filter((r) => r.outcome === 'COMPLIANT').length || 0}
+                  </span>{' '}
+                  verified matches and{' '}
+                  <span className="font-bold text-rose-700">
+                    {bid.threeWayReconciliations?.filter((r) => r.outcome === 'NON_COMPLIANT' || r.outcome === 'INCONSISTENT').length || 0}
+                  </span>{' '}
+                  evidence contradictions.
+                </div>
+              </div>
+            </div>
+
+            {/* Mandatory Statutory Disclaimer Banner */}
+            <div className="mb-6 p-3.5 bg-amber-50 rounded-xl border border-amber-200 flex items-center space-x-3 text-amber-900">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div className="text-xs">
+                <span className="font-bold uppercase tracking-wide">Statutory Responsibility: </span>
+                Final procurement decision rests with the Procurement Officer. AI models and automated reconciliation engines provide advisory assistance only.
+              </div>
+            </div>
+
             <div className="space-y-5">
               {/* Radio Group for Decision */}
               <div>
@@ -2835,6 +3008,41 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB 7: 3-WAY RECONCILIATION MATRIX */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'reconciliation' && (
+        <ThreeWayReconciliationTab
+          reconciliations={bid.threeWayReconciliations}
+          bidId={bid.id}
+          bidderLegalName={bid.bidder?.legalName}
+          onTriggerReVerify={handleReVerify}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB 8: CROSS-DOCUMENT CONSISTENCY & INTRA-DOSSIER CONTRADICTIONS */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'consistency' && (
+        <CrossDocumentConsistencyTab
+          consistencyReport={bid.crossDocConsistency}
+          bidderLegalName={bid.bidder?.legalName}
+          onTriggerReVerify={handleReVerify}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* SUBTAB 9: IMMUTABLE EVALUATION RUNS HISTORY */}
+      {/* ========================================================================= */}
+      {activeSubTab === 'runs' && (
+        <EvaluationRunsTab
+          evaluationRuns={bid.evaluationRuns}
+          bidNumber={bid.bidNumber}
+          bidderLegalName={bid.bidder?.legalName}
+          onTriggerReVerify={handleReVerify}
+        />
       )}
     </div>
   );
