@@ -8,9 +8,9 @@ spec:
   template:
     metadata:
       annotations:
-        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "10"
-        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
@@ -21,15 +21,18 @@ spec:
             - containerPort: 3000
           resources:
             limits:
-              cpu: "2000m"
-              memory: "2Gi"
+              cpu: "1000m"
+              memory: "1Gi"
           env:
             - name: NODE_ENV
               value: "production"
             - name: PORT
               value: "3000"
-            - name: GEMINI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: gemini-api-key
-                  key: latest
+            # Optional: Add GEMINI_API_KEY if live multimodal extraction is desired.
+            # If omitted, platform runs with built-in deterministic verification.
+            # To link Google Secret Manager:
+            # - name: GEMINI_API_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: gemini-api-key
+            #       key: latest

@@ -409,6 +409,104 @@ npm run build
 
 ---
 
+## Deployment & Demo Hosting
+
+GEV-VERIFY (SATYAM) is packaged as a single unified production web service that simultaneously serves the compiled React 19 single-page application, the Express REST API gateway, and the embedded SQLite database (`data/gev_verify.sqlite`).
+
+> [!NOTE]
+> **SIH 2026 Evaluation Demonstration Environment**:  
+> The single-service deployment is configured as a standalone demonstration prototype pre-loaded with realistic statutory seed data. On serverless container platforms (such as Render or Google Cloud Run), container file systems are ephemeral; any new bids or decisions created during a live demonstration are held in SQLite memory and local disk for the lifetime of that container instance. Upon container restart, scale-to-zero wake-up, or redeployment, the database resets to the clean, pre-seeded evaluation baseline. Dedicated PostgreSQL + pgvector persistence is architected for post-prototype stateful production rollout.
+
+### Environment Variables
+
+| Variable | Required? | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `PORT` | Optional | `3000` | Port for the unified web server (automatically injected by Render / Cloud Run) |
+| `HOST` | Optional | `0.0.0.0` | Network interface binding |
+| `NODE_ENV` | Optional | `production` | Set to `production` for static asset serving and optimized bundles |
+| `GEMINI_API_KEY` | Optional | *(none)* | Google Gemini API key for live multimodal OCR. If omitted, built-in deterministic engine is used |
+| `JWT_SECRET` | Optional | *(dev secret)* | Signing secret for role-based access control tokens |
+
+---
+
+### 1. Local Development & Production Test
+
+Run locally or test the production artifact:
+
+```powershell
+# Development mode with hot-reloading:
+npm run dev
+
+# Compile production bundle and test production server:
+npm run build
+npm start
+```
+Verify the health endpoint: **`http://localhost:3000/api/health`**
+
+---
+
+### 2. Standalone Docker Deployment
+
+Build and run the single-container demo web service:
+
+```bash
+# 1. Build the multi-stage Docker image
+docker build -t gev-verify:latest -f Dockerfile .
+
+# 2. Run container (binds to port 3000)
+docker run -d \
+  -p 3000:3000 \
+  -e PORT=3000 \
+  -e NODE_ENV=production \
+  --name gev-verify-demo \
+  gev-verify:latest
+
+# 3. Verify health status
+curl http://localhost:3000/api/health
+```
+
+---
+
+### 3. Render Deployment (Docker Web Service)
+
+Deploy to [Render](https://render.com) using either the included `render.yaml` Blueprint or manual Web Service creation:
+
+1. **New Web Service**: In the Render Dashboard, select **New +** → **Web Service**.
+2. **Connect Repository**: Choose the `Satyam` repository.
+3. **Runtime**: Select **Docker**.
+4. **Build Settings**:
+   - **Dockerfile Path**: `./Dockerfile` (or `infrastructure/Dockerfile`)
+   - **Instance Type**: `Free` or `Starter`
+5. **Environment Variables**:
+   - `NODE_ENV` = `production`
+   - `GEMINI_API_KEY` = *(Optional)* Your Gemini API key for live document OCR.
+6. **Health Check Path**: `/api/health`
+7. Click **Create Web Service**. Render will build the container, inject `$PORT`, and provide a public HTTPS URL.
+
+---
+
+### 4. Google Cloud Run Deployment
+
+Deploy the containerized demo to Google Cloud Run:
+
+```bash
+# 1. Build and push image to Google Container / Artifact Registry
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/gev-verify:latest
+
+# 2. Deploy to Cloud Run
+gcloud run deploy gev-verify \
+  --image gcr.io/YOUR_PROJECT_ID/gev-verify:latest \
+  --platform managed \
+  --region asia-south1 \
+  --allow-unauthenticated \
+  --port 3000 \
+  --memory 1Gi \
+  --set-env-vars NODE_ENV=production
+```
+Cloud Run handles automated HTTPS certificates, container lifecycle, and global routing.
+
+---
+
 ## Live Demonstration Sequence
 
 For a structured walkthrough during jury evaluation, follow the sequence documented in [docs/DEMO_GUIDE.md](./docs/DEMO_GUIDE.md):
