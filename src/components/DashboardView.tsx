@@ -216,7 +216,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Scenario 1: TechVanguard */}
           <button
             onClick={() => {
-              const b = bids.find((item) => item.bidder?.legalName?.includes('TechVanguard'));
+              const b = bids.find((item) => item.bidder?.legalName?.toLowerCase().includes('techvanguard') || item.id === 'bid-1');
               if (b) onSelectBid(b.id);
             }}
             className="text-left p-2.5 rounded-lg bg-white border border-slate-200 hover:border-emerald-500 hover:shadow-xs transition-all group"
@@ -236,7 +236,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Scenario 2: Apex Infotech */}
           <button
             onClick={() => {
-              const b = bids.find((item) => item.bidder?.legalName?.includes('Apex'));
+              const b = bids.find((item) => item.bidder?.legalName?.toLowerCase().includes('apex') || item.id === 'bid-2');
               if (b) onSelectBid(b.id);
             }}
             className="text-left p-2.5 rounded-lg bg-white border border-slate-200 hover:border-orange-500 hover:shadow-xs transition-all group"
@@ -256,7 +256,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Scenario 3: Bharat Electro */}
           <button
             onClick={() => {
-              const b = bids.find((item) => item.bidder?.legalName?.includes('Bharat'));
+              const b = bids.find((item) => item.bidder?.legalName?.toLowerCase().includes('bharat') || item.id === 'bid-3');
               if (b) onSelectBid(b.id);
             }}
             className="text-left p-2.5 rounded-lg bg-white border border-slate-200 hover:border-orange-500 hover:shadow-xs transition-all group"
@@ -276,7 +276,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Scenario 4: Global Quantum */}
           <button
             onClick={() => {
-              const b = bids.find((item) => item.bidder?.legalName?.includes('Global Quantum'));
+              const b = bids.find((item) => item.bidder?.legalName?.toLowerCase().includes('global') || item.id === 'bid-4');
               if (b) onSelectBid(b.id);
             }}
             className="text-left p-2.5 rounded-lg bg-white border border-slate-200 hover:border-rose-500 hover:shadow-xs transition-all group"
@@ -297,7 +297,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             onClick={() => {
               const b = bids.find(
-                (item) => item.bidder?.legalName?.includes('Surya') || item.bidder?.legalName?.includes('Zenith')
+                (item) => item.bidder?.legalName?.toLowerCase().includes('surya') || item.id === 'bid-7'
               );
               if (b) onSelectBid(b.id);
             }}

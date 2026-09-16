@@ -2,7 +2,14 @@
  * GEV-VERIFY (SATYAM) Automated Screenshot Capture Utility
  *
  * Captures high-resolution, un-fabricated screenshots of the running application
- * across the Executive Dashboard, Bidder Dossier, Three-Way Reconciliation, and Audit Ledger.
+ * across all core screens:
+ *   1. 01-dashboard.png
+ *   2. 02-bidder-dossier.png
+ *   3. 03-document-intelligence.png
+ *   4. 04-verification-results.png
+ *   5. 05-three-way-reconciliation.png
+ *   6. 06-consistency-analysis.png
+ *   7. 07-audit-ledger.png
  *
  * Requirements:
  *   1. Application must be running locally (`npm run dev` at http://localhost:3000)
@@ -31,7 +38,6 @@ async function main() {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }
 
-  // Dynamically import playwright to provide graceful feedback if not installed
   let chromium;
   try {
     const pw = await import('playwright');
@@ -47,7 +53,6 @@ async function main() {
 
   console.log(`Connecting to running application at: ${BASE_URL}`);
 
-  // Test server connectivity
   try {
     const healthRes = await fetch(`${BASE_URL}/api/health`);
     if (!healthRes.ok) throw new Error(`Health check returned status ${healthRes.status}`);
@@ -67,56 +72,81 @@ async function main() {
   const page = await context.newPage();
 
   try {
-    // 1. Executive Dashboard
-    console.log('1. Capturing Executive Dashboard...');
-    await page.goto(`${BASE_URL}/`, { waitUntil: 'networkidle', timeout: 30000 });
-    await page.waitForSelector('#dashboard-metrics-grid, text="Dashboard"', { timeout: 10000 });
-    await page.screenshot({ path: path.join(OUTPUT_DIR, 'dashboard.png'), fullPage: false });
-    console.log('  Saved: docs/screenshots/dashboard.png');
+    // 1. Procurement Dashboard
+    console.log('1. Capturing 01-dashboard.png...');
+    await page.goto(`${BASE_URL}`, { waitUntil: 'networkidle', timeout: 30000 });
+    await page.waitForSelector('#satyam-header', { timeout: 10000 });
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '01-dashboard.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/01-dashboard.png');
 
     // 2. Bidder Dossier View
-    console.log('2. Capturing Bidder Dossier View...');
-    // Look for first bidder card or navigate to tender bidders
-    const bidderLink = await page.$('button[id^="btn-view-bidder-"], a[href*="bid-"]');
-    if (bidderLink) {
-      await bidderLink.click();
-      await page.waitForTimeout(1500);
-      await page.screenshot({ path: path.join(OUTPUT_DIR, 'bidder-dossier.png'), fullPage: false });
-      console.log('  Saved: docs/screenshots/bidder-dossier.png');
+    console.log('2. Capturing 02-bidder-dossier.png...');
+    const apexBtn = page.getByText('Apex Infotech').first();
+    if ((await apexBtn.count()) > 0) {
+      await apexBtn.click();
     } else {
-      console.log('  Attempting to open bidder dossier via navigation...');
-      await page.goto(`${BASE_URL}/#bids`, { waitUntil: 'networkidle' });
-      await page.screenshot({ path: path.join(OUTPUT_DIR, 'bidder-dossier.png'), fullPage: false });
-      console.log('  Saved: docs/screenshots/bidder-dossier.png');
+      const firstBidder = page.locator('button:has-text("Inspect Dossier")').first();
+      await firstBidder.click();
     }
+    await page.waitForSelector('#subtab-overview', { timeout: 10000 });
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '02-bidder-dossier.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/02-bidder-dossier.png');
 
-    // 3. Three-Way Reconciliation
-    console.log('3. Capturing Three-Way Evidence Reconciliation...');
-    const reconTab = await page.$('button#tab-reconciliation, button:has-text("Reconciliation"), button:has-text("Cross-Verification")');
-    if (reconTab) {
-      await reconTab.click();
-      await page.waitForTimeout(1500);
-      await page.screenshot({ path: path.join(OUTPUT_DIR, 'three-way-reconciliation.png'), fullPage: false });
-      console.log('  Saved: docs/screenshots/three-way-reconciliation.png');
-    } else {
-      await page.screenshot({ path: path.join(OUTPUT_DIR, 'three-way-reconciliation.png'), fullPage: false });
-      console.log('  Saved: docs/screenshots/three-way-reconciliation.png');
+    // 3. Document Intelligence
+    console.log('3. Capturing 03-document-intelligence.png...');
+    const docSubtab = page.locator('#subtab-documents');
+    await docSubtab.click();
+    await page.waitForTimeout(1000);
+    const reanalyzeBtn = page.getByRole('button', { name: 'Re-analyze Document' });
+    if ((await reanalyzeBtn.count()) > 0) {
+      await reanalyzeBtn.click();
+      await page.waitForTimeout(2000);
     }
+    await page.evaluate(() => window.scrollBy(0, 380));
+    await page.waitForTimeout(1000);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '03-document-intelligence.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/03-document-intelligence.png');
 
-    // 4. Audit Ledger & History
-    console.log('4. Capturing Audit Ledger...');
-    const auditTab = await page.$('button#tab-audit, button:has-text("Audit"), button:has-text("History")');
-    if (auditTab) {
-      await auditTab.click();
-      await page.waitForTimeout(1500);
-      await page.screenshot({ path: path.join(OUTPUT_DIR, 'audit-ledger.png'), fullPage: false });
-      console.log('  Saved: docs/screenshots/audit-ledger.png');
-    } else {
-      await page.screenshot({ path: path.join(OUTPUT_DIR, 'audit-ledger.png'), fullPage: false });
-      console.log('  Saved: docs/screenshots/audit-ledger.png');
-    }
+    // Reset scroll
+    await page.evaluate(() => window.scrollTo(0, 0));
 
-    console.log('\nAll application screenshots captured successfully in docs/screenshots/!\n');
+    // 4. Verification Results
+    console.log('4. Capturing 04-verification-results.png...');
+    const verifSubtab = page.locator('#subtab-verifications');
+    await verifSubtab.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '04-verification-results.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/04-verification-results.png');
+
+    // 5. Three-Way Reconciliation
+    console.log('5. Capturing 05-three-way-reconciliation.png...');
+    const reconSubtab = page.locator('#subtab-reconciliation');
+    await reconSubtab.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '05-three-way-reconciliation.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/05-three-way-reconciliation.png');
+
+    // 6. Cross-Document Consistency
+    console.log('6. Capturing 06-consistency-analysis.png...');
+    const consistencySubtab = page.locator('#subtab-consistency');
+    await consistencySubtab.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '06-consistency-analysis.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/06-consistency-analysis.png');
+
+    // 7. Audit & Evaluation History
+    console.log('7. Capturing 07-audit-ledger.png...');
+    const auditNavBtn = page.locator('#nav-tab-audit');
+    await auditNavBtn.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '07-audit-ledger.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/07-audit-ledger.png');
+
+    console.log('\n====================================================');
+    console.log('  All 7 REAL screenshots captured successfully!');
+    console.log('====================================================\n');
   } catch (err) {
     console.error('Error during screenshot capture:', err);
   } finally {
@@ -124,4 +154,7 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error('Fatal execution error:', err);
+  process.exit(1);
+});

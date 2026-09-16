@@ -430,18 +430,78 @@ For a structured walkthrough during jury evaluation, follow the sequence documen
 
 ---
 
-## UI Captures & Screenshots
+## Product Screenshots
 
-Screenshots of the running application are saved in [docs/screenshots/](./docs/screenshots/):
-- `dashboard.png` — Executive Dashboard with portfolio risk metrics.
-- `bidder-dossier.png` — Comprehensive Bidder Dossier Inspector with document citations.
-- `three-way-reconciliation.png` — Side-by-side tri-party evidence comparison matrix.
-- `audit-ledger.png` — Append-only governance audit log.
+### Procurement Dashboard
+
+![GEV-VERIFY Procurement Dashboard](docs/screenshots/01-dashboard.png)
+
+Centralized overview of tenders, bidder evaluations, compliance status, risk indicators, and verification activity.
+
+### Bidder Verification Dossier
+
+![GEV-VERIFY Bidder Dossier](docs/screenshots/02-bidder-dossier.png)
+
+Consolidated bidder information, submitted evidence, verification results, and compliance findings.
+
+### Document Intelligence
+
+![GEV-VERIFY Document Intelligence](docs/screenshots/03-document-intelligence.png)
+
+AI-assisted extraction of structured information from submitted procurement documents.
+
+### Verification Results
+
+![GEV-VERIFY Verification Results](docs/screenshots/04-verification-results.png)
+
+Verification adapter results presented alongside bidder evidence.
+
+### Three-Way Evidence Reconciliation
+
+![GEV-VERIFY Three-Way Reconciliation](docs/screenshots/05-three-way-reconciliation.png)
+
+Bidder document evidence is reconciled against verification-source data and tender requirements.
+
+### Cross-Document Consistency
+
+![GEV-VERIFY Consistency Analysis](docs/screenshots/06-consistency-analysis.png)
+
+Identifies inconsistencies across bidder-submitted documents.
+
+### Audit & Evaluation History
+
+![GEV-VERIFY Audit Ledger](docs/screenshots/07-audit-ledger.png)
+
+Provides traceability across evaluation runs, findings, decisions, and supporting evidence.
+
+## Demo Workflow
+
+```text
+Tender
+  ↓
+Requirement Extraction
+  ↓
+Bidder Documents
+  ↓
+Document Intelligence
+  ↓
+Verification
+  ↓
+Three-Way Reconciliation
+  ↓
+Compliance Evaluation
+  ↓
+Risk Assessment
+  ↓
+AI Advisory
+  ↓
+Officer Decision
+  ↓
+Audit Trail
+```
 
 To capture fresh high-resolution screenshots from your local dev server:
 ```powershell
-npm install -D playwright
-npx playwright install chromium
 node scripts/capture-screenshots.mjs
 ```
 
