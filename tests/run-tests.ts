@@ -7,6 +7,7 @@ import { runAsyncReconciliationTests } from './unit/reconciliation.test';
 import { runConsistencyUnitTests } from './unit/consistency.test';
 import { runDemoScenariosTests } from './unit/demo-scenarios.test';
 import { runVerificationAdaptersUnitTests } from './unit/verification-adapters.test';
+import { runPolicyEdgeCasesTests } from './unit/policy-edge-cases.test';
 
 async function main() {
   console.log('====================================================');
@@ -41,6 +42,10 @@ async function main() {
   const demoResults = await runDemoScenariosTests();
   demoResults.tests.forEach((t) => console.log(`  ${t}`));
 
+  console.log('\n--- 8. Policy-As-Code Edge Cases & Cryptographic Audit Verification ---');
+  const edgeResults = await runPolicyEdgeCasesTests();
+  edgeResults.tests.forEach((t) => console.log(`  ${t}`));
+
   const totalPassed =
     compResults.passed +
     valResults.passed +
@@ -48,7 +53,8 @@ async function main() {
     reconResults.passed +
     consistencyResults.passed +
     adapterResults.passed +
-    demoResults.passed;
+    demoResults.passed +
+    edgeResults.passed;
 
   const totalFailed =
     compResults.failed +
@@ -57,7 +63,8 @@ async function main() {
     reconResults.failed +
     consistencyResults.failed +
     adapterResults.failed +
-    demoResults.failed;
+    demoResults.failed +
+    edgeResults.failed;
 
   console.log('\n====================================================');
   console.log(`  TOTAL: ${totalPassed + totalFailed} | PASSED: ${totalPassed} | FAILED: ${totalFailed}`);

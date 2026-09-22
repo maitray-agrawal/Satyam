@@ -1,652 +1,274 @@
-# GEV-VERIFY (SATYAM)
+# SATYAM
+Smart Audit & Trust Analytics for GeM Procurement
 
-> **National Public Procurement Compliance Verification & Decision-Support System**  
-> *Developed for Smart India Hackathon (SIH 2026 PS 26100) — Government e-Marketplace (GeM) & GFR 2017 Compliance*
+## Problem Statement
+SIH26100 — AI-Powered Integrated Bid Compliance Verification Platform for GeM Procurement
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-61dafb.svg?logo=react)](https://react.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg?logo=node.js)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-4.21-lightgrey.svg?logo=express)](https://expressjs.com/)
-[![SQLite](https://img.shields.io/badge/Database-SQLite%20(sql.js)-blue.svg?logo=sqlite)](https://sqlite.org/)
-[![Gemini](https://img.shields.io/badge/AI%20Provider-Google%20Gemini%20(Optional)-purple.svg)](https://ai.google.dev/)
-[![Docker](https://img.shields.io/badge/Deployment-Docker%20Compose-2496ed.svg?logo=docker)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-65%2F65%20Passed-emerald.svg)](./tests)
+[![Audit Integrity](https://img.shields.io/badge/Audit-SHA--256%20Tamper--Evident%20Ledger-emerald.svg)](./server/db.ts)
+[![Automated Tests](https://img.shields.io/badge/Automated%20Tests-82%2F82%20Passed-emerald.svg)](./tests)
+[![Build](https://img.shields.io/badge/Build-Passing%20(Exit%200)-success.svg)](./dist)
 
 ---
 
-## Overview
+## Executive Overview
 
-Public procurement evaluations under the **General Financial Rules (GFR 2017)** and **GeM General Terms & Conditions (GTC)** require evaluating thousands of statutory clauses across hundreds of bidder dossiers. Traditional manual verification is burdened by:
-- Severe backlog and scrutiny fatigue among Tender Inviting Authorities (TIAs).
-- Forged or mismatched statutory certificates (e.g. invalid GSTINs, expired CA UDINs, or unauthorized OEM Authorization codes).
-- Cross-document contradictions that escape human review.
-- Risks of blacklisted or debarred contractors participating through alter-ego entities.
+**SATYAM** (*Smart Audit & Trust Analytics for GeM Procurement*) is an enterprise-grade bid compliance verification and decision-support platform designed for the **Government e-Marketplace (GeM)** under Problem Statement **SIH26100**.
 
-**GEV-VERIFY (SATYAM)** solves this by introducing **Three-Way Evidence Reconciliation** backed by an audit-grade deterministic compliance engine and citation-grounded AI advisory layer. The platform ensures zero-hallucination document intelligence while preserving the statutory principle that **the Procurement Officer retains 100% final authority**.
+Public procurement in India involves strict adherence to the **General Financial Rules (GFR 2017)**, **GeM General Terms & Conditions (GTC)**, and **CVC guidelines**. Tender Inviting Authorities (TIAs) must scrutinize high volumes of technical and commercial documents within tight statutory deadlines. SATYAM resolves the dual challenges of evaluation backlogs and procurement fraud through an architecturally decoupled system:
+1. **AI Extraction & Advisory Layer**: Ingests multi-format bidder documents and synthesizes advisory guidance without exercising autonomous executive decision-making.
+2. **Deterministic Policy Engine**: Computes reproducible, mathematical compliance scores (0–100) and risk classifications based on versioned rulesets.
+3. **Statutory Registry Verification**: Validates claims against structured registry adapters (GST, PAN, MSME, EPFO, ESIC, MCA, Make in India, and central debarment lists).
+4. **Human-in-the-Loop Governance**: Retains exclusive decision authority with the authorized Procurement Officer, requiring mandatory statutory justifications under GFR Rule 144.
+5. **Tamper-Evident Cryptographic Ledger**: Guarantees non-repudiation and forensic auditability via backward-chained SHA-256 event blocks.
+
+---
+
+## Problem
+
+Under conventional public procurement operations, tender evaluation committees face critical operational vulnerabilities:
+
+1. **Scrutiny Backlog & Human Fatigue**: Manual verification of 50+ page technical submissions across hundreds of bidders leads to delayed tender finalizations, extended bid validity requirements, and human oversight.
+2. **Fraudulent & Forged Certificates**: Fabricated CA UDIN credentials, altered audited financial turnover statements, invalid GSTINs, and forged Manufacturer Authorization Forms (MAFs) evade manual detection.
+3. **Cross-Document Contradictions**: Hidden discrepancies—such as a PAN embedded within a GSTIN not matching the standalone PAN card, or legal names differing between Udyam and incorporation certificates—are rarely caught across disparate annexures.
+4. **Debarred & Blacklisted Entities**: Ineligible or debarred vendors circumvent exclusion lists by participating under sister concerns, modified trade names, or shell entities in violation of GFR Rule 151 and Rule 175.
+5. **Lack of Explainable Audit Trails**: Disqualification challenges raised before judicial or administrative review tribunals often fail due to the absence of verifiable, time-stamped, tamper-evident evidence trails.
+
+---
+
+## Solution
+
+SATYAM provides an integrated, evidence-grounded verification platform that transforms unstructured tender documents into verifiable statutory facts.
+
+### Core Architectural Invariant
+SATYAM enforces strict operational boundaries between probabilistic artificial intelligence, deterministic policy evaluation, and executive human judgment:
+
+- **AI does NOT compute compliance scores.**
+- **AI does NOT qualify or disqualify bidders.**
+- **AI does NOT override statutory rules.**
+
+```
+DOCUMENTS
+   ↓
+EXTRACTION / ADVISORY LAYER
+   ↓
+STRUCTURED EVIDENCE FACTS
+   ↓
+THREE-WAY RECONCILIATION & CONSISTENCY CHECK
+   ↓
+DETERMINISTIC COMPLIANCE ENGINE (Policy-as-Code)
+   ↓
+COMPLIANCE SCORE (0-100) & RISK TIER
+   ↓
+PROCUREMENT OFFICER (Human-in-the-Loop Decision & Justification)
+   ↓
+TAMPER-EVIDENT AUDIT LEDGER (SHA-256 Hash Chain)
+```
 
 ---
 
 ## Key Capabilities
 
-- **Tender Requirement Intelligence**: Ingests RFP documents, extracts candidate statutory clauses, minimum financial thresholds, and evaluation weights for officer review.
-- **AI-Assisted Document Intelligence**: Extracts structured bidder data (GSTIN, PAN, UDIN, turnover, local content %) with verbatim source quotes and page numbers under a strict zero-hallucination policy.
-- **Multi-Source Verification**: 13 modular verification adapters query authoritative databases (simulated in prototype) covering CBIC, CBDT, Udyam MSME, EPFO, ESIC, OEM, and CPPP debarment repos.
-- **Three-Way Evidence Reconciliation**: Cross-matches bidder documents, external registry records, and tender rules to surface discrepancies instantly.
-- **Deterministic Compliance Engine**: Scores bids on a transparent 0–100 scale using mathematical rules. AI cannot modify or inflate compliance scores.
-- **Explainable Risk Assessment**: Categorizes dossiers into `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL` risk tiers with explicit clause violation rationales.
-- **AI Advisory Layer**: Synthesizes verified findings into natural language advisory memos with statutory citations (GFR Rule 144 / GeM GTC).
-- **Human-in-the-Loop Decisions**: Provides mandatory justification workflows for officer approvals, rejections, or 48-hour clarification notices.
-- **Audit & Evaluation History**: Append-only audit logging and versioned evaluation snapshots for vigilance and CAG audits.
+- **Multi-Document Bid Analysis**: Ingests and processes multi-page PDFs, technical specifications, balance sheets, CA certificates, and OEM declarations.
+- **Government Registry Verification Architecture**: Pluggable verification subsystem supporting 13 statutory domains with explicit separation of simulation testbeds and live production endpoints.
+- **Three-Way Reconciliation**: Evaluates every requirement simultaneously across three vectors: (1) Tender RFP Mandate, (2) Bidder Extracted Claim, and (3) Independent Statutory Verification.
+- **Cross-Document Consistency**: Detects semantic and identity contradictions across dossier components, including GSTIN-PAN checksum alignment, entity legal name matching, and incorporation date coherence.
+- **Deterministic Compliance Engine**: Pure Policy-as-Code rules evaluating GFR 2017 conditions without probabilistic drift or hallucination risks.
+- **Risk Scoring**: Mathematically bounded 0–100 scoring with automated severity escalation (LOW, MEDIUM, HIGH, CRITICAL).
+- **Explainable Evidence**: Granular provenance trails displaying source document name, SHA-256 hash, page number, verbatim clause excerpt, and extraction confidence.
+- **Human-in-the-Loop Decision Workflow**: Statutory decision interface requiring authorized procurement officers to record official designations, mandatory legal justifications, and procurement conditions.
+- **Tamper-Evident Audit Trail**: Cryptographically chained SHA-256 event ledger guaranteeing full forensic integrity and detection of database-level tampering.
+- **Offline Demo Mode**: Self-contained deterministic fallback engine operating completely offline without external cloud dependencies or API keys.
 
 ---
 
-## Core Architecture
-
-GEV-VERIFY is structured into 8 distinct layers ensuring strict separation of concerns:
+## Architecture
 
 ```mermaid
-graph TD
-    subgraph UserLayer [1. User Layer]
-        PO[Procurement Officer / TIA]
-        AUD[Auditor / CAG Reviewer]
-    end
+flowchart TD
+    A[Bidder Documents] --> B[Document Ingestion]
+    B --> C[AI Extraction Layer]
+    C --> D[Structured Evidence]
 
-    subgraph PresentationLayer [2. Presentation Layer]
-        SPA[React 19 + TypeScript + Vite SPA]
-        DASH[Executive Dashboard]
-        DOSSIER[Bidder Dossier & Document Inspector]
-        RECON_UI[3-Way Reconciliation View]
-    end
+    D --> E[Three-Way Reconciliation]
+    E --> F[Cross-Document Consistency]
+    F --> G[Deterministic Compliance Engine]
 
-    subgraph ApplicationLayer [3. Application Gateway]
-        API[Express REST API Gateway - Port 3000]
-        AUTH[RBAC Auth Middleware]
-        ZOD[Zod Schema Validators]
-    end
+    H[Government Verification Adapters] --> E
+    I[Tender Requirements] --> G
 
-    subgraph IntelligenceLayer [4. Document Intelligence]
-        OCR[Multimodal Document Parser]
-        CITE[Evidence Citation Engine]
-        ADVISORY[AI Advisory Layer]
-    end
+    G --> J[Compliance Score & Risk]
+    J --> K[Evidence Dashboard]
 
-    subgraph VerificationLayer [5. Verification Adapters]
-        V_GST[CBIC / GSTN Adapter]
-        V_IT[CBDT / PAN & UDIN Adapter]
-        V_MSME[Udyam MSME Adapter]
-        V_EPFO[EPFO / ESIC Adapter]
-        V_DEB[Debarment / Blacklist Adapter]
-    end
-
-    subgraph DecisionLayer [6. Deterministic Decision Engine]
-        RECON[Three-Way Evidence Reconciliation]
-        SCORER[Deterministic Compliance Scorer 0-100]
-        RISK[Explainable Risk Assessor]
-    end
-
-    subgraph GovernanceLayer [7. Governance & Audit]
-        DECISION[Officer Determination Modal]
-        AUDIT[Append-Only Audit Ledger]
-    end
-
-    subgraph PersistenceLayer [8. Persistence Layer]
-        SQLITE[(Active Local Database: SQLite WASM)]
-        STORAGE[Document Storage - uploads/]
-    end
-
-    PO --> SPA
-    AUD --> SPA
-    SPA --> API
-    API --> AUTH --> ZOD
-    ZOD --> RECON
-    RECON --> OCR
-    RECON --> VerificationLayer
-    OCR --> CITE
-    CITE --> ADVISORY
-    RECON --> SCORER --> RISK
-    RISK --> ADVISORY
-    ADVISORY --> DECISION
-    DECISION --> AUDIT
-    AUDIT --> SQLITE
-    API --> SQLITE
-    API --> STORAGE
+    K --> L[Procurement Officer]
+    L --> M[Decision & Justification]
+    M --> N[Tamper-Evident Audit Ledger]
 ```
 
-> For full architectural details, see [docs/architecture.md](./docs/architecture.md) and the enterprise vector diagram at [docs/assets/architecture.svg](./docs/assets/architecture.svg).
+### Architectural Responsibilities
+
+| Subsystem | Primary Role | Implementation Files |
+|---|---|---|
+| **AI Extraction Layer** | Multimodal OCR, key-value extraction, clause mapping, advisory summaries | `server/ai/` |
+| **Verification Subsystem** | Queries statutory registries via standardized adapter interface | `server/integrations/verification/` |
+| **Reconciliation Engine** | Compares Tender Mandate vs Bid Evidence vs Registry Data | `server/reconciliationService.ts` |
+| **Consistency Engine** | Cross-references inter-document identifiers (PAN, GSTIN, Names) | `server/consistencyService.ts` |
+| **Compliance Engine** | Deterministically applies GFR procurement rules and computes scores | `server/complianceCore.ts`, `server/rules/` |
+| **Audit Subsystem** | Records SHA-256 backward-linked event logs for non-repudiation | `server/db.ts` |
+| **Human Interface** | Web dashboard for evidence inspection and officer decision logging | `src/components/`, `src/App.tsx` |
 
 ---
 
-## The Primary USP: Three-Way Evidence Reconciliation
+## Government Integration Transparency
 
-Unlike conventional OCR or isolated API lookup tools, GEV-VERIFY performs a synchronized tri-party cross-verification:
+> [!IMPORTANT]
+> **Mandatory Integration Disclosure**:  
+> Government registry integrations in this demonstration use controlled simulation adapters. Production deployment would require authorized credentials, API agreements, security controls, and connectivity to the respective government systems.
 
-$$\text{Bidder Document Evidence} \;\oplus\; \text{External Verification Source} \;\oplus\; \text{Tender Requirement} \;=\; \mathbf{Reconciled\;Compliance\;Finding}$$
+### Registry Adapter Specification
 
-```
-┌──────────────────────────────┐     ┌──────────────────────────────┐
-│  LAYER 1: BIDDER EVIDENCE    │     │  LAYER 2: VERIFICATION SOURCE │
-│  - Extracted Legal Name      │     │  - Authoritative Registry    │
-│  - Extracted GSTIN / PAN     │     │  - Active Filing Status      │
-│  - Stated Financial Turnover │     │  - Portal Address / MSME Tier│
-└──────────────┬───────────────┘     └──────────────┬───────────────┘
-               │                                    │
-               └─────────────────┬──────────────────┘
-                                 ▼
-              ┌─────────────────────────────────────┐
-              │     THREE-WAY RECONCILIATION        │
-              │  - Detects data contradictions      │
-              │  - Validates threshold compliance   │
-              │  - Flags blacklisted tax IDs        │
-              └──────────────────┬──────────────────┘
-                                 ▲
-               ┌─────────────────┴──────────────────┐
-               │  LAYER 3: TENDER REQUIREMENT RULES │
-               │  - GFR Rule 144(xi) Land Border    │
-               │  - Make-in-India Local Content %   │
-               │  - Mandatory Minimum Turnover      │
-               └────────────────────────────────────┘
-```
+| Registry | Current Demo Mode | Production API Architecture | Data Points Validated |
+|---|---|---|---|
+| **GSTN (Taxation)** | Controlled Simulation Adapter | Sandbox / GSP OAuth2 Gateway | Active GSTIN status, taxpayer type, return filing currency |
+| **CBDT / NSDL (PAN)** | Controlled Simulation Adapter | NSDL Verification API | PAN validity, legal entity name match, entity type |
+| **Udyam (MSME)** | Controlled Simulation Adapter | Ministry of MSME Verification API | Udyam Registration Number, enterprise classification (Micro/Small/Medium) |
+| **CPPP / GeM Debarment** | Controlled Simulation Adapter | CPPP Central Debarment Database | Exclusion status, debarment order reference, effective dates |
+| **MCA21 (ROC)** | Controlled Simulation Adapter | MCA V3 API Gateway | CIN, incorporation date, active company status |
+| **DPIIT (Make in India)** | Controlled Simulation Adapter | DPIIT Local Content Verification Portal | Local content declaration percentage (Class-I / Class-II) |
+| **EPFO & ESIC** | Controlled Simulation Adapter | Shram Suvidha Unified Portal API | Establishment code, active statutory employee contributions |
+| **OEM Verification** | Controlled Simulation Adapter | Direct OEM API / Public Cryptographic Key | MAF authorization code, validity date, tender authorization scope |
 
-### Secondary USPs
-1. **AI + Deterministic Compliance Separation**: Scores are computed mathematically (0–100); AI models cannot inflate or alter scores.
-2. **Tender-Aware Policy Evaluation**: Each check is weighted against the specific tender's published criteria.
-3. **Evidence Provenance**: Every extracted field links directly to source document page numbers and verbatim text snippets.
-4. **Cross-Document Consistency Detection**: Detects inter-document contradictions (e.g., PAN embedded in GSTIN differing from uploaded PAN card).
-5. **Explainable Risk Assessment**: Provides clear audit trails of why a bidder is classified as `HIGH` or `CRITICAL` risk.
-6. **Human-in-the-Loop Governance**: Mandatory justification prompts ensure legal defensibility before any officer override.
-7. **Modular Verification Adapters**: Pluggable adapter interface supporting 13 statutory registries.
+All simulation responses return `{ simulated: true, simulationNotice: "..." }` to maintain complete audit transparency during demonstration.
 
 ---
 
-## Technology Stack
+## Deterministic Compliance Scoring
 
-| Layer | Technologies | Role / Responsibility |
-| :--- | :--- | :--- |
-| **Frontend UI** | React 19, TypeScript, Vite 6, TailwindCSS 4, Lucide React, Recharts | High-performance SPA with tri-layer inspector & charts |
-| **Backend API** | Node.js (v20+ / v24+), Express 4.21, TypeScript, Zod | Gateway routing, RBAC auth, file uploads, OpenAPI 3.0 |
-| **Active Local DB** | SQLite via `sql.js` (WebAssembly) | Embedded local persistence (`data/gev_verify.sqlite`) |
-| **Production DB** | PostgreSQL 16 + Prisma ORM (pgvector ready) | Optional containerized database deployment target |
-| **Document AI** | Google Gemini (via `@google/genai`) + Structured Fallback | Multimodal statutory parsing & advisory generation |
-| **AI Intelligence Service** | Python 3.11+, FastAPI, Uvicorn, Pydantic | Optional standalone microservice on port 8001 |
-| **Observability** | Pino, Pino-Pretty | Structured JSON logging with credential redaction |
-| **Testing** | Custom Monorepo Test Runner via `tsx` | 7 automated unit, contract, and end-to-end suites |
+Compliance scoring is strictly mathematical and deterministic.
 
----
+### Mathematical Formulation
+The Overall Compliance Score is derived as:
 
-## Repository Structure
+$$\text{Score} = \text{round}\left( \frac{\sum_{i=1}^{n} \text{Points Awarded}_i}{\sum_{i=1}^{n} \text{Requirement Weight}_i} \times 100 \right)$$
 
-```
-Satyam/
-├── apps/
-│   └── api/                    # Domain controllers and repositories
-├── data/
-│   └── gev_verify.sqlite       # Pre-seeded active SQLite local database
-├── docs/
-│   ├── assets/                 # Architecture SVG diagrams
-│   ├── architecture.md         # Detailed architectural specification
-│   ├── DEMO_GUIDE.md           # 14-step live evaluation demonstration guide
-│   ├── SECURITY.md             # Security policy, RBAC, and governance
-│   └── screenshots/            # Application interface captures
-├── infrastructure/
-│   ├── docker-compose.yml      # Containerized deployment manifest
-│   ├── Dockerfile              # Production multi-stage build Dockerfile
-│   └── nginx.conf              # Reverse proxy configuration
-├── packages/
-│   ├── compliance-core/        # Deterministic policy engine & scoring algorithms
-│   ├── config/                 # Shared platform constants & scoring thresholds
-│   ├── shared-types/           # Shared TypeScript domain interfaces
-│   └── validation/             # Zod schemas for input validation
-├── prisma/
-│   └── schema.prisma           # Prisma schema for PostgreSQL production target
-├── scripts/
-│   └── capture-screenshots.mjs # Automated Playwright screenshot utility
-├── server/
-│   ├── complianceEngine.ts     # Deterministic GFR 2017 policy evaluation rules
-│   ├── consistencyEngine.ts    # Cross-document consistency verification
-│   ├── crossVerificationEngine.ts # Three-way reconciliation logic
-│   ├── db.ts                   # SQLite wasm database access & auto-seeding
-│   ├── gemini.ts               # Document intelligence & AI advisory with fallback
-│   ├── routes.ts               # Express REST API gateway routes
-│   └── verificationSimulators.ts # Statutory registry simulators
-├── services/
-│   └── ai-intelligence/        # Optional Python FastAPI AI microservice (port 8001)
-├── src/                        # React 19 client application (SPA)
-├── tests/                      # Automated test suite (65 passing tests)
-├── .env.example                # Sanitized configuration template
-├── package.json                # Monorepo configuration & npm scripts
-├── server.ts                   # Unified Express + Vite development server
-├── tsconfig.json               # Monorepo path aliases & compiler options
-└── vite.config.ts              # Clean Vite build configuration
-```
+### Rules & Safeguards
+1. **0–100 Bounding**: Scores are bounded strictly between 0 and 100.
+2. **Normalized Weights**: Each tender clause is assigned a statutory weight (e.g., GST: 20, Experience: 20, Turnover: 20, Debarment: 20, Make in India: 20).
+3. **Critical Escalation Ceiling**: If a critical statutory violation occurs (e.g., debarment on CPPP/GeM), the bidder's risk tier is automatically set to `CRITICAL` and the compliance score is capped at $\le 18$.
+4. **Missing Evidence Handling**: Missing mandatory documents are never assumed to be valid; they receive 0 points and evaluate to `MISSING_EVIDENCE`.
+5. **Special Exemptions**: Valid Startup India (DPIIT) and MSE (Udyam) credentials trigger automatic clause exemptions on Prior Experience and Prior Turnover under GFR Rule 153 and Rule 173(i), awarding full compliance points without penalty.
 
 ---
 
-## Prerequisites
+## Security & Access Control
 
-Before running the project locally:
-- **Node.js**: v20.x, v22.x, or v24.x LTS (tested on `v24.15.0`)
-- **npm**: v10+ (or **Bun** v1.2+)
-- **Python**: v3.10+ (only required if running the optional Python AI microservice)
-- **Git**
-- *(Optional)* **Docker & Docker Compose**: Only needed if testing containerized PostgreSQL deployment.
-- *(Optional)* **Gemini API Key**: Only needed if live Google GenAI model calls are desired. The application runs with 100% functionality offline using its built-in deterministic fallback engine.
-
-> **Note**: PostgreSQL is **not** required for local development. The application runs immediately out of the box using embedded SQLite.
+- **HTTP Security Headers**: Enforces `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, and `Strict-Transport-Security`.
+- **Role-Based Access Control (RBAC)**: Enforces role boundaries (`BIDDER`, `PROCUREMENT_OFFICER`, `AUDITOR`, `ADMIN`). Mutating endpoints (decision logging, tender ruleset updates) require authenticated `PROCUREMENT_OFFICER` or `ADMIN` roles.
+- **Upload Validation & Path Sanitization**: Multi-layer upload security verifying MIME types, whitelisting file extensions (`.pdf`, `.png`, `.jpg`, `.jpeg`), and sanitizing filenames with `path.basename` to prevent path traversal attacks.
+- **Information Leakage Prevention**: Detailed server stack traces are suppressed from client responses.
 
 ---
 
-## Environment Configuration
+## Tamper-Evident Audit Ledger
 
-1. Copy `.env.example` to create your local `.env`:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-2. *(Optional)* Add your Gemini API key in `.env` if you wish to run live multimodal extractions:
-   ```env
-   GEMINI_API_KEY=your_actual_gemini_api_key_here
-   ```
-   *If left blank, GEV-VERIFY will seamlessly operate using its deterministic parsing and advisory rules.*
+SATYAM implements a backward-linked SHA-256 cryptographic audit chain:
+
+- **Genesis Block**: Root hash initialized as `GENESIS`.
+- **Chained Hashing**: Each subsequent audit entry computes:
+  $$\text{Hash}_N = \text{SHA-256}(\text{Hash}_{N-1} \parallel \text{ID} \parallel \text{EventType} \parallel \text{ActorName} \parallel \text{ActorRole} \parallel \text{Timestamp} \parallel \text{Payload})$$
+- **On-Demand Ledger Verification**: The `/api/audit-logs/verify` endpoint recalculates and verifies the cryptographic chain from genesis to head. If any database record is directly modified or deleted, the verification detects the break and pinpoints the exact compromised record index.
 
 ---
 
-## Local Installation
+## Demonstration Scenarios
 
-Clone the repository and install all workspace dependencies:
+The pre-seeded demonstration environment includes 5 standard scenarios reflecting realistic procurement evaluations:
 
-```powershell
-# 1. Clone repository
-git clone https://github.com/maitray-agrawal/Satyam.git
+1. **Scenario 1 — Fully Compliant Bidder (TechVanguard Solutions)**  
+   - Valid GSTIN, verified PAN, Class-I Local Content (65%), active OEM MAF, clean debarment status.  
+   - Result: Score: 100/100 | Risk: `LOW` | Pre-seeded Officer Decision: `QUALIFIED`.
+2. **Scenario 2 — OEM Authorization Discrepancy (Apex Infotech)**  
+   - Valid tax credentials, but OEM authorization code is invalid or missing verification.  
+   - Result: Score: 85/100 | Risk: `HIGH` | Status: Requires clarification under GeM shortfall procedure.
+3. **Scenario 3 — Make in India Local Content Shortfall (Bharat Electro Systems)**  
+   - Bidding on a Class-I mandatory tender (min 50% local content), but declares only 38%.  
+   - Result: Score: 68/100 | Risk: `HIGH` | Discrepancy: Ineligible for purchase preference under PPP-MII Order 2017.
+4. **Scenario 4 — Debarred / Blacklisted Entity (Global Quantum Networks)**  
+   - Entity found on central CPPP/GeM debarment registry for past contractual defaults.  
+   - Result: Score: 5/100 | Risk: `CRITICAL` | Status: Recommended for immediate disqualification under GFR Rule 151.
+5. **Scenario 5 — Startup India / MSME Statutory Exemption (Surya Solar Systems)**  
+   - Early-stage enterprise with verified DPIIT Startup certificate and Udyam registration.  
+   - Result: Turnover and Prior Experience clauses evaluated as `EXEMPTED` under GFR Rule 153/173 | Risk: `LOW`.
+
+---
+
+## Offline Demo Mode
+
+SATYAM includes an integrated **Deterministic Fallback Provider** (`server/ai/providers/fallback.provider.ts`).
+
+- **No Internet Required**: All document extraction, rule evaluation, reconciliation, scoring, and UI workflows operate completely offline.
+- **No API Keys Required**: When `GEMINI_API_KEY` is not present, the system automatically uses deterministic rule-based extraction and template-grounded advisory formulation.
+- **Zero Hallucinations**: Offline mode produces reliable, reproducible results during live evaluations.
+
+---
+
+## Quickstart & Verification
+
+### 1. Prerequisites
+- Node.js 20+ installed
+- npm 10+ installed
+
+### 2. Installation
+```bash
+# Clone the repository
+git clone <repo-url>
 cd Satyam
 
-# 2. Install monorepo dependencies
-# With npm (using legacy peer deps for React 19 compatibility):
-npm install --legacy-peer-deps
-
-# Or with Bun:
-bun install
+# Install dependencies using clean install
+npm ci
 ```
 
----
-
-## Run the Application
-
-Start the unified full-stack development server:
-
-```powershell
-npm run dev
-```
-
-*Expected Output:*
-```text
-[SATYAM] Government Procurement Verification Platform running on http://0.0.0.0:3000
-Vite server ready in ... ms
-```
-
-Open your browser to: **`http://localhost:3000`**  
-Verify API health check: **`http://localhost:3000/api/health`**
-
----
-
-## Optional: Run Python AI Intelligence Service
-
-If you wish to run the standalone Python FastAPI microservice:
-
-```powershell
-cd services/ai-intelligence
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python main.py
-```
-
-*Microservice runs on:* **`http://localhost:8001`**  
-*Health endpoint:* **`http://localhost:8001/health`**
-
----
-
-## Testing & Verification
-
-GEV-VERIFY includes a comprehensive automated test runner verifying compliance rules, Zod schemas, OpenAPI contracts, reconciliation algorithms, consistency checks, adapters, and demo scenarios.
-
-```powershell
-# 1. Execute full automated test suite
+### 3. Run Automated Verification Tests
+Run the comprehensive test suite (82 automated tests across 8 suites):
+```bash
 npm test
+```
+*Expected Output: `TOTAL: 82 | PASSED: 82 | FAILED: 0`*
 
-# 2. Run TypeScript static type checking
-npm run lint
-
-# 3. Test production build compilation
+### 4. Build for Production
+```bash
 npm run build
 ```
+*Builds the Vite frontend bundle (`dist/`) and bundles the backend server (`dist/server.cjs`).*
 
-### Verified Test Results (Commit `95c1266` Sanitized)
-```text
-====================================================
-  SATYAM MONOREPO AUTOMATED TEST SUITE (SIH 2026 PS 26100)
-====================================================
---- 1. Compliance Core & Policy Engine Tests (6 tests)
-  PASS: PolicyEngine: GST rule should evaluate to COMPLIANT when verified
-  PASS: PolicyEngine: GST rule score should equal requirement weight
-  PASS: PolicyEngine: Debarment rule should evaluate to NON_COMPLIANT on blacklisted entity
-  PASS: PolicyEngine: Debarment rule score should be 0
-  PASS: ComplianceScorer: Normalized score calculation (20 / 40 * 100 = 50)
-  PASS: ComplianceScorer: Critical debarment violation triggers CRITICAL risk level
-
---- 2. Zod Domain Validation Tests (3 tests)
-  PASS: Validation: CreateBidSchema parses valid Indian GSTIN & PAN
-  PASS: Validation: CreateBidSchema rejects invalid GSTIN format
-  PASS: Validation: OfficerDecisionSchema requires min 10 chars statutory justification
-
---- 3. OpenAPI 3.0 Contract Tests (7 tests)
-  PASS: Contract: OpenAPI specification version is 3.0.3
-  PASS: Contract: /tenders endpoint defined in schema
-  PASS: Contract: /bids/{id} endpoint defined in schema
-  PASS: Contract: /bids/{id}/decision endpoint defined in schema
-  PASS: Contract: /verification/adapters endpoint defined in schema
-  PASS: Contract: OpenAPI specification title is defined
-  PASS: Contract: API server URL configured
-
---- 4. Three-Way Reconciliation Engine Tests (9 tests)
-  PASS: Reconciliation: Generated reconciliation matrix for all 4 requirements
-  PASS: Reconciliation: Found GST reconciliation item
-  PASS: Reconciliation: GST outcome is COMPLIANT
-  PASS: Reconciliation: GST Document evidence presence is true
-  PASS: Reconciliation: Extracted GSTIN matches
-  PASS: Reconciliation: Verification evidence simulated flag is preserved
-  PASS: Reconciliation: Found missing OEM requirement
-  PASS: Reconciliation: Missing mandatory doc evaluated as MISSING_EVIDENCE
-  PASS: Reconciliation: Missing mandatory doc triggers CRITICAL severity
-  PASS: Reconciliation: Missing mandatory doc receives 0 score
-  PASS: Reconciliation: Make in India (65% >= 50%) is COMPLIANT
-
---- 5. Cross-Document Consistency Engine Tests (8 tests)
-  PASS: Consistency: Clean documents achieve 100 consistency score
-  PASS: Consistency: Clean verdict is CONSISTENT
-  PASS: Consistency: 0 inconsistencies in clean dossier
-  PASS: Consistency: Multiple verified cross-document matches recorded
-  PASS: Consistency: Flags contradiction between GSTIN-embedded PAN and PAN card
-  PASS: Consistency: Found PAN field inconsistency item
-  PASS: Consistency: Contradicting PAN numbers flag as HIGH_RISK_REVIEW severity
-  PASS: Consistency: Score is penalized for contradiction
-
---- 6. Statutory Verification Adapters Tests (13 tests)
-  PASS: Verification Registry: At least 13 adapters registered (actual: 13)
-  PASS: Verification Registry: GST adapter found
-  PASS: GST Adapter: Returns simulated: true flag
-  PASS: GST Adapter: Includes simulation notice
-  PASS: GST Adapter: Active GSTIN matches as VERIFIED
-  PASS: Verification Registry: PAN adapter found
-  PASS: PAN Adapter: Returns VERIFIED status for valid PAN
-  PASS: Verification Registry: Debarment/Blacklist adapter found
-  PASS: Blacklist Adapter: Non-blacklisted entity returns VERIFIED clean
-  PASS: Blacklist Adapter: Blacklisted entity returns FLAGGED status
-  PASS: Blacklist Adapter: isBlacklisted flag is true
-  PASS: Verification Registry: Make In India adapter found
-  PASS: Verification Registry: Udyam MSME adapter found
-
---- 7. End-to-End Demo Scenarios Verification Tests (19 tests)
-  PASS: Demo Scenario 1: Bid-1 (TechVanguard) exists in database
-  PASS: Demo Scenario 1: TechVanguard has LOW risk level (actual: LOW)
-  PASS: Demo Scenario 1: TechVanguard score >= 90 (actual: 100)
-  PASS: Demo Scenario 1: TechVanguard all checks COMPLIANT or EXEMPTED
-  PASS: Demo Scenario 2: Bid-2 (Apex Infotech) exists in database
-  PASS: Demo Scenario 2: Apex Infotech has elevated risk (actual: HIGH)
-  PASS: Demo Scenario 2: OEM authorization check flagged (actual: NON_COMPLIANT)
-  PASS: Demo Scenario 3: Bid-3 (Bharat Electro) exists in database
-  PASS: Demo Scenario 3: Bharat Electro has HIGH or CRITICAL risk (actual: HIGH)
-  PASS: Demo Scenario 3: Make in India check flagged (actual: NON_COMPLIANT)
-  PASS: Demo Scenario 4: Bid-4 (Global Quantum) exists in database
-  PASS: Demo Scenario 4: Global Quantum has CRITICAL risk level (actual: CRITICAL)
-  PASS: Demo Scenario 4: Debarment penalty caps score <= 18 (actual: 5)
-  PASS: Demo Scenario 4: Blacklisting check evaluated as NON_COMPLIANT
-  PASS: Demo Scenario 4: Critical debarment flag captured in risk assessment
-  PASS: Demo Scenario 5: Bid-7 (Surya Solar) exists in database
-  PASS: Demo Scenario 5: Startup India check is recognized (actual: COMPLIANT)
-====================================================
-  TOTAL: 65 | PASSED: 65 | FAILED: 0
-====================================================
-```
-
----
-
-## Deployment & Demo Hosting
-
-GEV-VERIFY (SATYAM) is packaged as a single unified production web service that simultaneously serves the compiled React 19 single-page application, the Express REST API gateway, and the embedded SQLite database (`data/gev_verify.sqlite`).
-
-> [!NOTE]
-> **SIH 2026 Evaluation Demonstration Environment**:  
-> The single-service deployment is configured as a standalone demonstration prototype pre-loaded with realistic statutory seed data. On serverless container platforms (such as Render or Google Cloud Run), container file systems are ephemeral; any new bids or decisions created during a live demonstration are held in SQLite memory and local disk for the lifetime of that container instance. Upon container restart, scale-to-zero wake-up, or redeployment, the database resets to the clean, pre-seeded evaluation baseline. Dedicated PostgreSQL + pgvector persistence is architected for post-prototype stateful production rollout.
-
-### Environment Variables
-
-| Variable | Required? | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `PORT` | Optional | `3000` | Port for the unified web server (automatically injected by Render / Cloud Run) |
-| `HOST` | Optional | `0.0.0.0` | Network interface binding |
-| `NODE_ENV` | Optional | `production` | Set to `production` for static asset serving and optimized bundles |
-| `GEMINI_API_KEY` | Optional | *(none)* | Google Gemini API key for live multimodal OCR. If omitted, built-in deterministic engine is used |
-| `JWT_SECRET` | Optional | *(dev secret)* | Signing secret for role-based access control tokens |
-
----
-
-### 1. Local Development & Production Test
-
-Run locally or test the production artifact:
-
-```powershell
-# Development mode with hot-reloading:
-npm run dev
-
-# Compile production bundle and test production server:
-npm run build
+### 5. Start the Production Server
+```bash
 npm start
 ```
-Verify the health endpoint: **`http://localhost:3000/api/health`**
+The platform will bind to `0.0.0.0:3000` (or the port specified via `PORT` environment variable).
+
+### Key Verification Endpoints
+
+| Endpoint | Method | Purpose |
+|---|:---:|---|
+| `/api/health` | `GET` | Platform health, service name, and version status |
+| `/api/tenders` | `GET` | List seeded procurement tenders |
+| `/api/verification/adapters` | `GET` | Enumeration of all 13 statutory verification adapters |
+| `/api/audit-logs/verify` | `GET` | Cryptographic SHA-256 audit ledger integrity verification |
+| `/` | `GET` | Production single-page application (SPA) dashboard |
 
 ---
 
-### 2. Standalone Docker Deployment
+## Regulatory & Legal Alignment
 
-Build and run the single-container demo web service:
+SATYAM is built in strict alignment with Indian public procurement governance frameworks:
 
-```bash
-# 1. Build the multi-stage Docker image
-docker build -t gev-verify:latest -f Dockerfile .
-
-# 2. Run container (binds to port 3000)
-docker run -d \
-  -p 3000:3000 \
-  -e PORT=3000 \
-  -e NODE_ENV=production \
-  --name gev-verify-demo \
-  gev-verify:latest
-
-# 3. Verify health status
-curl http://localhost:3000/api/health
-```
-
----
-
-### 3. Render Deployment (Docker Web Service)
-
-Deploy to [Render](https://render.com) using either the included `render.yaml` Blueprint or manual Web Service creation:
-
-1. **New Web Service**: In the Render Dashboard, select **New +** → **Web Service**.
-2. **Connect Repository**: Choose the `Satyam` repository.
-3. **Runtime**: Select **Docker**.
-4. **Build Settings**:
-   - **Dockerfile Path**: `./Dockerfile` (or `infrastructure/Dockerfile`)
-   - **Instance Type**: `Free` or `Starter`
-5. **Environment Variables**:
-   - `NODE_ENV` = `production`
-   - `GEMINI_API_KEY` = *(Optional)* Your Gemini API key for live document OCR.
-6. **Health Check Path**: `/api/health`
-7. Click **Create Web Service**. Render will build the container, inject `$PORT`, and provide a public HTTPS URL.
-
----
-
-### 4. Google Cloud Run Deployment
-
-Deploy the containerized demo to Google Cloud Run:
-
-```bash
-# 1. Build and push image to Google Container / Artifact Registry
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/gev-verify:latest
-
-# 2. Deploy to Cloud Run
-gcloud run deploy gev-verify \
-  --image gcr.io/YOUR_PROJECT_ID/gev-verify:latest \
-  --platform managed \
-  --region asia-south1 \
-  --allow-unauthenticated \
-  --port 3000 \
-  --memory 1Gi \
-  --set-env-vars NODE_ENV=production
-```
-Cloud Run handles automated HTTPS certificates, container lifecycle, and global routing.
-
----
-
-## Live Demonstration Sequence
-
-For a structured walkthrough during jury evaluation, follow the sequence documented in [docs/DEMO_GUIDE.md](./docs/DEMO_GUIDE.md):
-
-1. **Executive Dashboard**: Review tender metrics, active risk flags, and statutory SLA tracker.
-2. **Tender Selection**: Select Tender `GEM/2026/B/948210` and inspect statutory clauses.
-3. **Open Bidder Dossier**: Open Bidder `bid-2` (Apex Infotech) or `bid-3` (Bharat Electro-Tech).
-4. **Document Inspection**: Inspect uploaded GST/PAN/OEM certificates in Subtab 2.
-5. **Extracted Evidence**: Examine verified field extractions with verbatim source citations.
-6. **Third-Party Registries**: Review the 13 simulated statutory portal verification records in Subtab 3.
-7. **Three-Way Reconciliation**: Switch to Subtab 4 to observe side-by-side tri-party cross-checks.
-8. **Discrepancy Detection**: Observe real-time mismatch alerts for invalid OEM codes or low local content.
-9. **Deterministic Score**: Verify the mathematically calculated score (0–100) based strictly on rules.
-10. **Explainable Risk Assessment**: Inspect the assigned risk level (`HIGH`/`CRITICAL`) and statutory clause flags.
-11. **AI Advisory Recommendation**: Review the advisory guidance memo and prominent legal disclaimer.
-12. **Procurement Officer Determination**: Record an official determination with mandatory written justification.
-13. **Audit Ledger**: Verify the immutable event entry recorded in the audit trail.
-14. **Generate Report**: Produce an audit-grade printable summary report for the Tender Inviting Authority.
-
----
-
-## Product Screenshots
-
-### Procurement Dashboard
-
-![GEV-VERIFY Procurement Dashboard](docs/screenshots/01-dashboard.png)
-
-Centralized overview of tenders, bidder evaluations, compliance status, risk indicators, and verification activity.
-
-### Bidder Verification Dossier
-
-![GEV-VERIFY Bidder Dossier](docs/screenshots/02-bidder-dossier.png)
-
-Consolidated bidder information, submitted evidence, verification results, and compliance findings.
-
-### Document Intelligence
-
-![GEV-VERIFY Document Intelligence](docs/screenshots/03-document-intelligence.png)
-
-AI-assisted extraction of structured information from submitted procurement documents.
-
-### Verification Results
-
-![GEV-VERIFY Verification Results](docs/screenshots/04-verification-results.png)
-
-Verification adapter results presented alongside bidder evidence.
-
-### Three-Way Evidence Reconciliation
-
-![GEV-VERIFY Three-Way Reconciliation](docs/screenshots/05-three-way-reconciliation.png)
-
-Bidder document evidence is reconciled against verification-source data and tender requirements.
-
-### Cross-Document Consistency
-
-![GEV-VERIFY Consistency Analysis](docs/screenshots/06-consistency-analysis.png)
-
-Identifies inconsistencies across bidder-submitted documents.
-
-### Audit & Evaluation History
-
-![GEV-VERIFY Audit Ledger](docs/screenshots/07-audit-ledger.png)
-
-Provides traceability across evaluation runs, findings, decisions, and supporting evidence.
-
-## Demo Workflow
-
-```text
-Tender
-  ↓
-Requirement Extraction
-  ↓
-Bidder Documents
-  ↓
-Document Intelligence
-  ↓
-Verification
-  ↓
-Three-Way Reconciliation
-  ↓
-Compliance Evaluation
-  ↓
-Risk Assessment
-  ↓
-AI Advisory
-  ↓
-Officer Decision
-  ↓
-Audit Trail
-```
-
-To capture fresh high-resolution screenshots from your local dev server:
-```powershell
-node scripts/capture-screenshots.mjs
-```
-
----
-
-## Security & Governance
-
-For full security specifications, refer to [docs/SECURITY.md](./docs/SECURITY.md). Key security implementations include:
-- **No Hardcoded Secrets**: All environment variables use dynamic expansion or placeholders.
-- **RBAC Middleware**: Enforced access control for `PROCUREMENT_OFFICER`, `ADMIN`, `AUDITOR`, and `REVIEWER`.
-- **Sensitive Field Redaction**: Automatic logging redaction of passwords, tokens, and API keys.
-- **Tamper-Evident Hashing**: SHA-256 cryptographic hashing of all uploaded bidder documents upon ingestion.
-
----
-
-## Current Prototype Limitations
-
-In adherence to technical truthfulness:
-1. **Simulated Government Registries**: Third-party verification sources (GSTN, CBDT, Udyam, EPFO, ESIC, CPPP) use realistic simulation adapters in the prototype. Production deployment requires integration with authenticated NIC / API Setu gateways.
-2. **Local Persistence Layer**: The active prototype persists to local SQLite (`data/gev_verify.sqlite`) via `sql.js`. A production Prisma schema for PostgreSQL with `pgvector` is provided for containerized deployment.
-3. **Optional External AI**: The multimodal OCR and advisory features use Google Gemini when configured, but automatically fallback to deterministic parsing and scoring rules when offline.
-4. **Advisory Decision Support Only**: The system does not make autonomous procurement awards; the authorized Procurement Officer retains legal responsibility.
-
----
-
-## Product Roadmap
-
-- **Phase 1: SIH 2026 Prototype (Current)**
-  - Three-Way Evidence Reconciliation engine.
-  - Deterministic GFR 2017 compliance policy scorer.
-  - 13 pluggable statutory verification simulators.
-  - Citation-grounded AI advisory layer with offline fallback.
-  - Complete 65-test automated verification suite.
-
-- **Phase 2: Controlled Pilot**
-  - Direct integration with Open API Setu and GeM sandbox environments.
-  - PostgreSQL + pgvector persistence migration.
-  - Distributed background job processing for high-volume multi-gigabyte RFP dossiers.
-  - Digital signature certificate (DSC) Class-3 token hardware validation.
-
-- **Phase 3: Production Nationwide Scale**
-  - Multi-tenant deployment across central and state procurement departments.
-  - Continuous registry polling for post-award debarment monitoring.
-  - Automated integration with GeM contract award and financial opening modules.
-
----
-
-## License
-
-Licensing terms for the GEV-VERIFY (SATYAM) repository are currently unspecified. Contact the project maintainers for institutional evaluation and usage permissions.
+- **GFR 2017 Rule 144**: Fundamental principles of public procurement (efficiency, economy, transparency).
+- **GFR 2017 Rule 149**: Mandatory procurement through the GeM portal.
+- **GFR 2017 Rule 151**: Debarment from bidding for integrity or contractual violations.
+- **GFR 2017 Rule 153 & 173(i)**: Mandatory purchase preference and exemptions for MSEs and Startups.
+- **Public Procurement (Preference to Make in India) Order 2017**: Local content classification and purchase preference enforcement.
+- **CVC Guidelines**: Prevention of arbitrary disqualifications through auditable, evidence-backed evaluation records.

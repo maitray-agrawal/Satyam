@@ -4,7 +4,7 @@ export const openApiSpec = {
     title: 'SATYAM: GeM Enterprise Bid Compliance & Verification API',
     version: '2.4.0',
     description:
-      'National Public Procurement Enterprise API for automated documentary extraction, simulated government registry verification (GST, PAN, MSME, EPFO, ESIC, OEM, Debarment), deterministic policy-driven compliance scoring, and Gemini evidence-grounded decision support under GFR 2017.',
+      'National Public Procurement Enterprise API for automated documentary extraction, simulated government registry verification (GST, PAN, MSME, EPFO, ESIC, OEM, Debarment), deterministic policy-driven compliance scoring, and evidence-grounded decision support under GFR 2017.',
     contact: {
       name: 'GeM Technical & Procurement Directorate',
       url: 'https://gem.gov.in',

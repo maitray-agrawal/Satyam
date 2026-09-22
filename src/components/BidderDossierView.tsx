@@ -134,9 +134,9 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
   // Copilot Chat State
   const [copilotQuery, setCopilotQuery] = useState('');
   const [copilotLoading, setCopilotLoading] = useState(false);
-  const [copilotMessages, setCopilotMessages] = useState<Array<{ sender: 'user' | 'gemini'; text: string; time: string }>>([
+  const [copilotMessages, setCopilotMessages] = useState<Array<{ sender: 'user' | 'assistant'; text: string; time: string }>>([
     {
-      sender: 'gemini',
+      sender: 'assistant',
       text: `Greetings, Officer ${currentUser.name}. I am your GeM Statutory Compliance Decision-Support Copilot. I have analyzed Bid ${bid.bidNumber} submitted by "${bid.bidder?.legalName}". You may ask me about specific GeM GTC clauses, local content thresholds, shortfall procedures, or request a drafted clarification letter.`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
@@ -212,7 +212,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
     }
   };
 
-  // Re-analyze existing document with Gemini
+  // Re-analyze existing document with AI Provider
   const handleReanalyzeDocument = async (doc: Document) => {
     setIsReanalyzingDocId(doc.id);
     setReanalysisError(null);
@@ -346,14 +346,14 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
       });
       const data = await res.json();
       const aiMsg = {
-        sender: 'gemini' as const,
+        sender: 'assistant' as const,
         text: data.response || 'No response generated.',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setCopilotMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       const errMsg = {
-        sender: 'gemini' as const,
+        sender: 'assistant' as const,
         text: 'Error contacting AI Copilot. Please try again.',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
@@ -976,7 +976,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* SUBTAB 2: UPLOADS & GEMINI OCR EXTRACTOR */}
+      {/* SUBTAB 2: UPLOADS & OCR EXTRACTOR */}
       {/* ========================================================================= */}
       {activeSubTab === 'documents' && (
         <div className="space-y-6">
@@ -1582,7 +1582,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                         fileName: selectedDocForInspect.fileOriginalName,
                         sha256Hash: selectedDocForInspect.sha256Hash,
                         extractionTimestamp: selectedDocForInspect.uploadTimestamp,
-                        aiModel: 'gemini-3.7-flash',
+                        aiModel: 'satyam-advisory-engine',
                         fields: selectedDocForInspect.extractedFields || [],
                       },
                       null,
@@ -1965,7 +1965,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                     {/* 3-Layer Comparison Columns */}
                     <div className="p-5 space-y-5">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Layer 1: Gemini Extracted Document */}
+                        {/* Layer 1: Extracted Document */}
                         <div className="rounded-xl border border-purple-200 bg-purple-50/30 p-4 flex flex-col justify-between space-y-3">
                           <div>
                             <div className="flex items-center justify-between pb-2 border-b border-purple-200/80">
@@ -2575,7 +2575,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               <div className="p-3 bg-slate-900 text-slate-100 rounded-lg text-xs">
                 <div className="text-[10px] font-mono text-slate-400 mb-1 flex items-center justify-between">
                   <span>STRICT JSON RECOMMENDATION SCHEMA</span>
-                  <span className="text-emerald-400 font-bold">gemini-3.7-flash</span>
+                  <span className="text-emerald-400 font-bold">SATYAM_ADVISORY_ENGINE</span>
                 </div>
                 <pre className="text-[11px] font-mono overflow-x-auto text-slate-300">
 {JSON.stringify({

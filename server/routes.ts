@@ -19,6 +19,7 @@ import {
   saveOfficerDecision,
   getDashboardStats,
   getAllAuditLogs,
+  verifyAuditLedgerIntegrity,
 } from './db';
 import { VerificationSimulators } from './verificationSimulators';
 import { analyzeDocumentWithGemini, queryCopilot, extractTenderRequirementsWithGemini } from './gemini';
@@ -28,7 +29,7 @@ import { authMiddleware, requireRole } from './modules/auth/auth.middleware';
 import { openApiSpec } from './openapi/openapi.spec';
 import { initializeVerificationRegistry } from './integrations/verification';
 import { JobQueueService } from './jobs/job-queue.service';
-import { EvidenceService } from './ai/evidence.service';
+import { EvidenceService } from './ai';
 import { createServiceLogger } from './observability/logger';
 
 const log = createServiceLogger('ApiGateway');
@@ -52,9 +53,10 @@ const storage = multer.diskStorage({
     cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `doc-${uniqueSuffix}${ext}`);
+    const rawExt = path.extname(file.originalname).toLowerCase();
+    const safeExt = ['.pdf', '.png', '.jpg', '.jpeg'].includes(rawExt) ? rawExt : '.bin';
+    const uniqueSuffix = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}`;
+    cb(null, `doc-${uniqueSuffix}${safeExt}`);
   },
 });
 
@@ -178,7 +180,7 @@ apiRouter.post('/tenders/:id/extract-requirements', upload.single('rfpFile') as 
 });
 
 // Update or approve/reject a tender requirement
-apiRouter.put('/tenders/requirements/:reqId', async (req: Request, res: Response) => {
+apiRouter.put('/tenders/requirements/:reqId', requireRole(['PROCUREMENT_OFFICER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const { reqId } = req.params;
     const user = (req as any).user;
@@ -204,7 +206,7 @@ apiRouter.put('/tenders/requirements/:reqId', async (req: Request, res: Response
 });
 
 // Add a single custom requirement to a tender
-apiRouter.post('/tenders/:id/requirements', async (req: Request, res: Response) => {
+apiRouter.post('/tenders/:id/requirements', requireRole(['PROCUREMENT_OFFICER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const tenderId = req.params.id;
     const user = (req as any).user;
@@ -235,7 +237,7 @@ apiRouter.post('/tenders/:id/requirements', async (req: Request, res: Response) 
 });
 
 // Publish tender ruleset (bumps rulesetVersion, locks approved clauses, and deterministically re-evaluates all bids)
-apiRouter.post('/tenders/:id/publish-ruleset', async (req: Request, res: Response) => {
+apiRouter.post('/tenders/:id/publish-ruleset', requireRole(['PROCUREMENT_OFFICER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const tenderId = req.params.id;
     const user = (req as any).user;
@@ -384,7 +386,7 @@ apiRouter.post('/bids/:id/re-verify', async (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/bids/:id/decision', async (req: Request, res: Response) => {
+apiRouter.post('/bids/:id/decision', requireRole(['PROCUREMENT_OFFICER', 'ADMIN']), async (req: Request, res: Response) => {
   try {
     const { officerName, officerDesignation, decision, comments, conditions } = req.body;
     if (!decision || !comments) {
@@ -626,6 +628,16 @@ apiRouter.get('/audit-logs', async (req: Request, res: Response) => {
     res.json(logs);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/audit-logs/verify', async (req: Request, res: Response) => {
+  try {
+    const verification = await verifyAuditLedgerIntegrity();
+    res.json(verification);
+  } catch (err: any) {
+    log.error('Audit ledger verification failed', { error: err.message });
+    res.status(500).json({ error: 'Failed to verify cryptographic audit trail integrity' });
   }
 });
 

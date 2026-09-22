@@ -1131,7 +1131,7 @@ function generateExactEvidenceText(params: {
       `• LAYER 1 (Extracted Document): Verified file "${doc.fileOriginalName}" (SHA-256: ${doc.sha256Hash.substring(
         0,
         16
-      )}...). Extracted ${presentFields.length} structured fields via Gemini 3.7 Flash.`
+      )}...). Extracted ${presentFields.length} structured fields via Document Intelligence Engine.`
     );
     const snippet = fields.find((f) => f.rawSnippet)?.rawSnippet;
     if (snippet) {

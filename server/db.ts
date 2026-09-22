@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import initSqlJs, { Database } from 'sql.js';
 import {
   Tender,
@@ -269,7 +270,9 @@ function initSchema(db: Database) {
       actorRole TEXT NOT NULL,
       actionSummary TEXT NOT NULL,
       payloadJson TEXT,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      previousHash TEXT,
+      hash TEXT
     );
 
     CREATE TABLE IF NOT EXISTS evaluation_runs (
@@ -320,6 +323,9 @@ function initSchema(db: Database) {
   safeAddColumn('extracted_fields', 'originalValue TEXT');
   safeAddColumn('extracted_fields', 'normalizedValue TEXT');
   safeAddColumn('extracted_fields', "extractionMethod TEXT DEFAULT 'OCR_MULTIMODAL'");
+
+  safeAddColumn('audit_logs', 'previousHash TEXT');
+  safeAddColumn('audit_logs', 'hash TEXT');
 }
 
 // ----------------- SEED DATA INITIALIZATION -----------------
@@ -837,19 +843,41 @@ async function seedInitialData(database: Database) {
     );
 
     // Audit logs
+    // Audit logs with SHA-256 tamper-evident hash chaining
     const seedTime = new Date().toISOString();
-    database.run(
-      `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [`aud-${bid.id}-1`, bid.id, bid.tenderId, 'BID_SUBMITTED', 'GeM Portal Ingest', 'SYSTEM', `Bid ${bid.bidNumber} ingested with quoted value ₹ ${(bid.quotedAmount / 100000).toFixed(2)} Lakhs.`, JSON.stringify({ bidNumber: bid.bidNumber, amount: bid.quotedAmount }), bid.submissionDate || seedTime]
-    );
-    database.run(
-      `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [`aud-${bid.id}-2`, bid.id, bid.tenderId, 'COMPLIANCE_EVALUATED', 'Compliance Engine', 'SYSTEM', `Deterministic compliance calculated: Score ${assessment.overallScore}/100 (${assessment.riskLevel} Risk).`, JSON.stringify({ score: assessment.overallScore, risk: assessment.riskLevel }), seedTime]
-    );
-    database.run(
-      `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [`aud-${bid.id}-3`, bid.id, bid.tenderId, 'AI_RECOMMENDATION_GENERATED', 'Gemini Decision Support', 'AI_AGENT', `AI advisory recommendation generated: ${rec.recommendation}.`, JSON.stringify({ recommendation: rec.recommendation }), seedTime]
-    );
+    insertAuditLog(database, {
+      id: `aud-${bid.id}-1`,
+      bidId: bid.id,
+      tenderId: bid.tenderId,
+      eventType: 'BID_SUBMITTED',
+      actorName: 'GeM Portal Ingest',
+      actorRole: 'SYSTEM',
+      actionSummary: `Bid ${bid.bidNumber} ingested with quoted value ₹ ${(bid.quotedAmount / 100000).toFixed(2)} Lakhs.`,
+      payloadJson: { bidNumber: bid.bidNumber, amount: bid.quotedAmount },
+      timestamp: bid.submissionDate || seedTime,
+    });
+    insertAuditLog(database, {
+      id: `aud-${bid.id}-2`,
+      bidId: bid.id,
+      tenderId: bid.tenderId,
+      eventType: 'COMPLIANCE_EVALUATED',
+      actorName: 'Compliance Engine',
+      actorRole: 'SYSTEM',
+      actionSummary: `Deterministic compliance calculated: Score ${assessment.overallScore}/100 (${assessment.riskLevel} Risk).`,
+      payloadJson: { score: assessment.overallScore, risk: assessment.riskLevel },
+      timestamp: seedTime,
+    });
+    insertAuditLog(database, {
+      id: `aud-${bid.id}-3`,
+      bidId: bid.id,
+      tenderId: bid.tenderId,
+      eventType: 'AI_RECOMMENDATION_GENERATED',
+      actorName: 'AI Advisory Engine',
+      actorRole: 'AI_AGENT',
+      actionSummary: `AI advisory recommendation generated: ${rec.recommendation}.`,
+      payloadJson: { recommendation: rec.recommendation },
+      timestamp: seedTime,
+    });
   }
 
   // Pre-seed an Officer Decision on Bid 1 (TechVanguard approved)
@@ -1465,11 +1493,17 @@ export async function addDocumentToBid(
     }
   }
 
-  // Audit Log
-  database.run(
-    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`aud-${Date.now()}`, doc.bidId, doc.tenderId, 'DOCUMENT_UPLOADED', 'Procurement Officer', 'USER', `Uploaded ${doc.documentType} document: ${doc.fileOriginalName} (${Math.round(doc.fileSize / 1024)} KB) - Gemini 3.7 Flash Analyzed`, JSON.stringify({ fileName: doc.fileOriginalName, type: doc.documentType, extractedFieldsCount: extractedFields?.length || 0 }), now]
-  );
+  // Audit Log with SHA-256 hash chaining
+  insertAuditLog(database, {
+    bidId: doc.bidId,
+    tenderId: doc.tenderId,
+    eventType: 'DOCUMENT_UPLOADED',
+    actorName: 'Procurement Officer',
+    actorRole: 'USER',
+    actionSummary: `Uploaded ${doc.documentType} document: ${doc.fileOriginalName} (${Math.round(doc.fileSize / 1024)} KB) - Document Analyzed & Extracted`,
+    payloadJson: { fileName: doc.fileOriginalName, type: doc.documentType, extractedFieldsCount: extractedFields?.length || 0 },
+    timestamp: now,
+  });
 
   saveDb();
   return {
@@ -1517,10 +1551,16 @@ export async function reanalyzeDocumentInDb(
   database.run(`UPDATE documents SET status = 'ANALYZED', verificationStatus = 'VALID' WHERE id = '${documentId}'`);
 
   const now = new Date().toISOString();
-  database.run(
-    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`aud-${Date.now()}`, docObj.bidId, docObj.tenderId, 'DOCUMENT_REANALYZED', 'Procurement Officer', 'USER', `Re-analyzed ${docObj.documentType} (${docObj.fileOriginalName}) with Gemini 3.7 Flash`, JSON.stringify({ documentId, fieldsCount: newFields.length }), now]
-  );
+  insertAuditLog(database, {
+    bidId: docObj.bidId,
+    tenderId: docObj.tenderId,
+    eventType: 'DOCUMENT_REANALYZED',
+    actorName: 'Procurement Officer',
+    actorRole: 'USER',
+    actionSummary: `Re-analyzed ${docObj.documentType} (${docObj.fileOriginalName}) with AI Document Intelligence`,
+    payloadJson: { documentId, fieldsCount: newFields.length },
+    timestamp: now,
+  });
 
   saveDb();
   return {
@@ -1653,11 +1693,17 @@ export async function rerunVerificationAndCompliance(bidId: string): Promise<Bid
     console.error('Error persisting evaluation_run:', err);
   }
 
-  // Audit Log
-  database.run(
-    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`aud-${Date.now()}`, bid.id, bid.tenderId, 'VERIFICATION_RE_EVALUATED', 'Procurement Officer', 'USER', `Re-evaluated compliance checks & simulated government API cross-checks. New score: ${assessment.overallScore}/100.`, JSON.stringify({ score: assessment.overallScore, risk: assessment.riskLevel }), new Date().toISOString()]
-  );
+  // Audit Log with SHA-256 hash chaining
+  insertAuditLog(database, {
+    bidId: bid.id,
+    tenderId: bid.tenderId,
+    eventType: 'VERIFICATION_RE_EVALUATED',
+    actorName: 'Procurement Officer',
+    actorRole: 'USER',
+    actionSummary: `Re-evaluated compliance checks & simulated government API cross-checks. New score: ${assessment.overallScore}/100.`,
+    payloadJson: { score: assessment.overallScore, risk: assessment.riskLevel },
+    timestamp: new Date().toISOString(),
+  });
 
   saveDb();
   return await getBidFullDetails(bidId);
@@ -1689,11 +1735,17 @@ export async function saveOfficerDecision(
 
   database.run(`UPDATE bids SET technicalStatus = ?, status = 'DECIDED' WHERE id = ?`, [techStatus, bidId]);
 
-  // Audit Log
-  database.run(
-    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`aud-${Date.now()}`, bidId, null, 'OFFICER_DECISION_RECORDED', decision.officerName, 'PROCUREMENT_OFFICER', `Officer recorded final decision: ${decision.decision}. Reason: ${decision.comments}`, JSON.stringify(decision), now]
-  );
+  // Audit Log with SHA-256 hash chaining
+  insertAuditLog(database, {
+    bidId,
+    tenderId: null,
+    eventType: 'OFFICER_DECISION_RECORDED',
+    actorName: decision.officerName,
+    actorRole: 'PROCUREMENT_OFFICER',
+    actionSummary: `Officer recorded final decision: ${decision.decision}. Reason: ${decision.comments}`,
+    payloadJson: decision,
+    timestamp: now,
+  });
 
   saveDb();
   return {
@@ -1752,10 +1804,17 @@ export async function createBidderAndBid(
     [bidId, tenderId, bidderId, bidNumber, now, quotedAmount, 'PENDING_VERIFICATION', 'NOT_OPENED', 'SUBMITTED']
   );
 
-  database.run(
-    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [`aud-${Date.now()}`, bidId, tenderId, 'BIDDER_REGISTERED_AND_BID_CREATED', 'Procurement Portal', 'SYSTEM', `New bidder "${bidderData.legalName}" registered and Bid ${bidNumber} created.`, JSON.stringify({ bidNumber, legalName: bidderData.legalName }), now]
-  );
+  // Audit Log with SHA-256 hash chaining
+  insertAuditLog(database, {
+    bidId,
+    tenderId,
+    eventType: 'BIDDER_REGISTERED_AND_BID_CREATED',
+    actorName: 'Procurement Portal',
+    actorRole: 'SYSTEM',
+    actionSummary: `New bidder "${bidderData.legalName}" registered and Bid ${bidNumber} created.`,
+    payloadJson: { bidNumber, legalName: bidderData.legalName },
+    timestamp: now,
+  });
 
   saveDb();
   await rerunVerificationAndCompliance(bidId);
@@ -1831,6 +1890,159 @@ export async function getDashboardStats(): Promise<{
     riskDistribution,
     complianceCategoryScores,
     recentAuditLogs,
+  };
+}
+
+/**
+ * Inserts an immutable audit log record with cryptographic SHA-256 hash chaining.
+ * Chain integrity: hash = SHA-256(previousHash | id | eventType | actorName | actorRole | timestamp | payloadStr)
+ */
+export function insertAuditLog(
+  database: Database,
+  logEntry: {
+    id?: string;
+    bidId?: string | null;
+    tenderId?: string | null;
+    eventType: string;
+    actorName: string;
+    actorRole: string;
+    actionSummary: string;
+    payloadJson?: any;
+    timestamp?: string;
+  }
+): AuditLog {
+  const id = logEntry.id || `aud-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const timestamp = logEntry.timestamp || new Date().toISOString();
+  const payloadStr =
+    typeof logEntry.payloadJson === 'string'
+      ? logEntry.payloadJson
+      : JSON.stringify(logEntry.payloadJson || {});
+
+  // Fetch previous log hash
+  let previousHash = 'GENESIS_0000000000000000000000000000000000000000000000000000000000000000';
+  try {
+    const lastLogRes = database.exec(
+      `SELECT hash FROM audit_logs WHERE hash IS NOT NULL ORDER BY timestamp DESC, id DESC LIMIT 1`
+    );
+    if (lastLogRes.length && lastLogRes[0].values.length && lastLogRes[0].values[0][0]) {
+      previousHash = String(lastLogRes[0].values[0][0]);
+    }
+  } catch (e) {
+    // If column doesn't exist yet
+  }
+
+  // Calculate cryptographic SHA-256 hash for this record
+  const contentToHash = `${previousHash}|${id}|${logEntry.eventType}|${logEntry.actorName}|${logEntry.actorRole}|${timestamp}|${payloadStr}`;
+  const hash = crypto.createHash('sha256').update(contentToHash).digest('hex');
+
+  database.run(
+    `INSERT INTO audit_logs (id, bidId, tenderId, eventType, actorName, actorRole, actionSummary, payloadJson, timestamp, previousHash, hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      logEntry.bidId || null,
+      logEntry.tenderId || null,
+      logEntry.eventType,
+      logEntry.actorName,
+      logEntry.actorRole,
+      logEntry.actionSummary,
+      payloadStr,
+      timestamp,
+      previousHash,
+      hash,
+    ]
+  );
+
+  return {
+    id,
+    bidId: logEntry.bidId || undefined,
+    tenderId: logEntry.tenderId || undefined,
+    eventType: logEntry.eventType,
+    actorName: logEntry.actorName,
+    actorRole: logEntry.actorRole,
+    actionSummary: logEntry.actionSummary,
+    payloadJson: logEntry.payloadJson,
+    timestamp,
+    previousHash,
+    hash,
+  };
+}
+
+/**
+ * Validates the cryptographic integrity of the entire audit chain.
+ * Verifies that each record's previousHash matches the preceding hash,
+ * and that recomputing SHA-256 over record contents matches the stored hash.
+ */
+export async function verifyAuditLedgerIntegrity(): Promise<{
+  isValid: boolean;
+  totalLogs: number;
+  genesisHash: string;
+  latestHash: string;
+  tamperedLogId?: string;
+  message: string;
+}> {
+  const database = await getDb();
+  const res = database.exec(`SELECT * FROM audit_logs ORDER BY timestamp ASC, id ASC`);
+  if (!res.length || !res[0].values.length) {
+    return {
+      isValid: true,
+      totalLogs: 0,
+      genesisHash: 'NONE',
+      latestHash: 'NONE',
+      message: 'Audit ledger is currently empty.',
+    };
+  }
+
+  const cols = res[0].columns;
+  const rows = res[0].values.map((r) => {
+    const a: any = {};
+    cols.forEach((c, idx) => (a[c] = r[idx]));
+    return a;
+  });
+
+  let expectedPrevHash = 'GENESIS_0000000000000000000000000000000000000000000000000000000000000000';
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (i === 0 && row.previousHash) {
+      expectedPrevHash = row.previousHash;
+    }
+
+    if (row.previousHash && row.previousHash !== expectedPrevHash) {
+      return {
+        isValid: false,
+        totalLogs: rows.length,
+        genesisHash: rows[0].hash || 'UNKNOWN',
+        latestHash: rows[rows.length - 1].hash || 'UNKNOWN',
+        tamperedLogId: row.id,
+        message: `Audit chain broken at log [${row.id}]. Expected previousHash=${expectedPrevHash}, but found ${row.previousHash}.`,
+      };
+    }
+
+    const payloadStr = typeof row.payloadJson === 'string' ? row.payloadJson : JSON.stringify(row.payloadJson || {});
+    const contentToHash = `${row.previousHash || expectedPrevHash}|${row.id}|${row.eventType}|${row.actorName}|${row.actorRole}|${row.timestamp}|${payloadStr}`;
+    const calculatedHash = crypto.createHash('sha256').update(contentToHash).digest('hex');
+
+    if (row.hash && row.hash !== calculatedHash) {
+      return {
+        isValid: false,
+        totalLogs: rows.length,
+        genesisHash: rows[0].hash || 'UNKNOWN',
+        latestHash: rows[rows.length - 1].hash || 'UNKNOWN',
+        tamperedLogId: row.id,
+        message: `Cryptographic payload mismatch at log [${row.id}]. Calculated hash=${calculatedHash}, stored hash=${row.hash}.`,
+      };
+    }
+
+    if (row.hash) {
+      expectedPrevHash = row.hash;
+    }
+  }
+
+  return {
+    isValid: true,
+    totalLogs: rows.length,
+    genesisHash: rows[0].hash || 'GENESIS',
+    latestHash: rows[rows.length - 1].hash || 'GENESIS',
+    message: `All ${rows.length} audit trail records verified. Cryptographic SHA-256 chain is intact.`,
   };
 }
 

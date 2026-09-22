@@ -277,6 +277,7 @@ export interface AIRecommendation {
   recommendation: RecommendationType;
   reason: string;
   reasoningText?: string;
+  confidenceScore?: number;
   criticalIssues: string[];
   missingRequirements: string[];
   recommendedActions: string[];
@@ -305,8 +306,10 @@ export interface AuditLog {
   actorName: string;
   actorRole: string;
   actionSummary: string;
-  payloadJson?: Record<string, any>;
+  payloadJson?: any;
   timestamp: string;
+  previousHash?: string;
+  hash?: string;
 }
 
 export interface ThreeWayReconciliationItem {
@@ -342,12 +345,34 @@ export interface ThreeWayReconciliationItem {
     formatRequired: string;
   };
   outcome: 'COMPLIANT' | 'NON_COMPLIANT' | 'REVIEW_REQUIRED' | 'MISSING_EVIDENCE' | 'INCONSISTENT' | 'NOT_APPLICABLE';
+  reconciliationOutcome?: 'MATCH' | 'MISMATCH' | 'MISSING' | 'UNVERIFIED' | 'CONFLICT' | 'NOT_APPLICABLE';
   scoreAchieved: number;
   confidenceScore: number;
   reason: string;
   issues: string[];
   severity: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   recommendedAction: string;
+  discrepancyDetails?: {
+    field: string;
+    bidderValue: string;
+    verificationValue: string;
+    tenderExpectation: string;
+    reason: string;
+    severity: 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    evidence: string;
+    affectedRequirement: string;
+    recommendedAction: string;
+  };
+  provenanceTrail?: {
+    documentName?: string;
+    sourcePage?: number;
+    extractedField?: string;
+    evidenceSnippet?: string;
+    verificationSource?: string;
+    reconciliationStatus?: string;
+    policyRuleId?: string;
+    finalResult?: string;
+  };
 }
 
 export interface DocumentFieldObservation {

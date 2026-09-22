@@ -202,6 +202,45 @@ export async function executeThreeWayReconciliation(
       recommendedAction = 'Meets requirement. Approved for compliance.';
     }
 
+    // Map outcome to SIH-standard reconciliationOutcome
+    let reconciliationOutcome: 'MATCH' | 'MISMATCH' | 'MISSING' | 'UNVERIFIED' | 'CONFLICT' | 'NOT_APPLICABLE' = 'MATCH';
+    if (outcome === 'COMPLIANT') reconciliationOutcome = 'MATCH';
+    else if (outcome === 'MISSING_EVIDENCE') reconciliationOutcome = 'MISSING';
+    else if (outcome === 'NON_COMPLIANT') reconciliationOutcome = 'CONFLICT';
+    else if (outcome === 'INCONSISTENT') reconciliationOutcome = 'MISMATCH';
+    else if (outcome === 'REVIEW_REQUIRED') reconciliationOutcome = 'UNVERIFIED';
+    else if (outcome === 'NOT_APPLICABLE') reconciliationOutcome = 'NOT_APPLICABLE';
+
+    // Construct structured discrepancy details if not perfectly matched
+    let discrepancyDetails: ThreeWayReconciliationItem['discrepancyDetails'] = undefined;
+    if (reconciliationOutcome !== 'MATCH' && reconciliationOutcome !== 'NOT_APPLICABLE') {
+      const bidderValStr = Object.entries(extractedKeyValues).map(([k, v]) => `${k}=${v}`).join(', ') || 'None';
+      const verifValStr = Object.entries(verifiedKeyValues).map(([k, v]) => `${k}=${v}`).join(', ') || statusText;
+      discrepancyDetails = {
+        field: code,
+        bidderValue: bidderValStr,
+        verificationValue: verifValStr,
+        tenderExpectation: req.minThreshold ? `Threshold: ${req.minThreshold}` : (req.customRuleDescription || req.requirementName),
+        reason,
+        severity,
+        evidence: `[Doc: ${doc?.fileName || 'MISSING'}] vs [Portal: ${sourcePortal}]`,
+        affectedRequirement: req.requirementName,
+        recommendedAction,
+      };
+    }
+
+    // Provenance trail: Document -> Page -> Extracted Field -> Evidence -> Verification Source -> Reconciliation Result -> Policy Rule -> Compliance Status
+    const provenanceTrail = {
+      documentName: doc?.fileName || 'NO_DOCUMENT_SUBMITTED',
+      sourcePage: doc?.extractedFields?.[0]?.sourcePage || 1,
+      extractedField: Object.keys(extractedKeyValues).join(', ') || 'None',
+      evidenceSnippet: docEvidence.extractedSnippet || 'No submitted text available',
+      verificationSource: sourcePortal,
+      reconciliationStatus: reconciliationOutcome,
+      policyRuleId: `STATUTORY-RULE-${code}`,
+      finalResult: outcome,
+    };
+
     results.push({
       id: `RECON-${bid.id}-${code}`,
       requirementCode: code as RequirementCode,
@@ -212,12 +251,15 @@ export async function executeThreeWayReconciliation(
       verificationEvidence,
       tenderCondition,
       outcome,
+      reconciliationOutcome,
       scoreAchieved,
       confidenceScore,
       reason,
       issues,
       severity,
       recommendedAction,
+      discrepancyDetails,
+      provenanceTrail,
     });
   }
 
