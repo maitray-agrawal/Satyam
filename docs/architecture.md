@@ -182,4 +182,4 @@ The platform architecture features 13 modular verification adapters implementing
 12. `MCA`: Ministry of Corporate Affairs (CIN & Director validation)
 13. `DIGILOCKER`: Document authenticity verification
 
-*Note: In the prototype, external government APIs are simulated using realistic datasets and deterministic response adapters. In production, these adapters map to authenticated REST/SOAP endpoints.*
+*Note: In this demonstration environment, external government APIs are simulated using controlled datasets and deterministic response adapters. In production, these adapters map to authenticated REST/SOAP endpoints.*

@@ -13,7 +13,7 @@ from schemas import (
 app = FastAPI(
     title="GEV-VERIFY AI Intelligence Service",
     version="2.4.0",
-    description="Microservice providing Gemini-powered Statutory Document Field Extraction and Citation-Grounded Advisory."
+    description="Microservice providing Statutory Document Field Extraction and Citation-Grounded Advisory."
 )
 
 app.add_middleware(
@@ -30,12 +30,12 @@ def health():
         "status": "healthy",
         "service": "ai-intelligence",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "geminiConfigured": bool(os.getenv("GEMINI_API_KEY"))
+        "aiProviderConfigured": bool(os.getenv("GEMINI_API_KEY"))
     }
 
 @app.post("/api/v1/extract", response_model=ExtractionResponse)
 async def extract_document_fields(req: ExtractionRequest):
-    # Microservice handler delegating to Gemini or returning grounded fallback extraction
+    # Microservice handler delegating to AI provider or returning grounded fallback extraction
     req_code = req.requirementCode.upper()
     fields = {}
     

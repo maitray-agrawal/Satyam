@@ -1,4 +1,4 @@
-# Multi-stage production build for GEV-VERIFY Platform (SIH 2026 PS 26100)
+# Multi-stage production build for GEV-VERIFY Platform (   )
 FROM node:22-alpine AS builder
 
 WORKDIR /app

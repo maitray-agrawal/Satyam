@@ -159,7 +159,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div>
           <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
             <ShieldCheck className="w-4 h-4 text-teal-600" />
-            <span>SIH 2026 PS 26100 • GeM Decision-Support</span>
+            <span>    • GeM Decision-Support</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">SATYAM</h1>
           <h2 className="text-sm font-semibold text-slate-600 mt-0.5">
@@ -633,25 +633,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <td className="py-3.5 px-4 text-center">
                       <div className="inline-flex flex-col items-center">
                         <span
-                          className={`text-sm font-black font-mono ${
-                            (bid.overallScore || 0) >= 90
-                              ? 'text-emerald-700'
-                              : (bid.overallScore || 0) >= 70
+                          className={`text-sm font-black font-mono ${(bid.overallScore || 0) >= 90
+                            ? 'text-emerald-700'
+                            : (bid.overallScore || 0) >= 70
                               ? 'text-amber-700'
                               : 'text-rose-700'
-                          }`}
+                            }`}
                         >
                           {bid.overallScore ?? '--'}/100
                         </span>
                         <div className="w-12 bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1">
                           <div
-                            className={`h-full ${
-                              (bid.overallScore || 0) >= 90
-                                ? 'bg-emerald-500'
-                                : (bid.overallScore || 0) >= 70
+                            className={`h-full ${(bid.overallScore || 0) >= 90
+                              ? 'bg-emerald-500'
+                              : (bid.overallScore || 0) >= 70
                                 ? 'bg-amber-500'
                                 : 'bg-rose-500'
-                            }`}
+                              }`}
                             style={{ width: `${bid.overallScore || 0}%` }}
                           />
                         </div>
@@ -665,13 +663,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <td className="py-3.5 px-4">
                       {isDecisionDone ? (
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                            bid.officerDecision?.decision === 'APPROVE'
-                              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                              : bid.officerDecision?.decision === 'REJECT'
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${bid.officerDecision?.decision === 'APPROVE'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                            : bid.officerDecision?.decision === 'REJECT'
                               ? 'bg-rose-50 text-rose-800 border border-rose-200'
                               : 'bg-amber-50 text-amber-800 border border-amber-200'
-                          }`}
+                            }`}
                         >
                           {bid.officerDecision?.decision}
                         </span>

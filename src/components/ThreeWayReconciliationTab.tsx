@@ -106,7 +106,7 @@ export const ThreeWayReconciliationTab: React.FC<ThreeWayReconciliationTabProps>
           <div>
             <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
               <ShieldCheck className="w-4 h-4 text-teal-600" />
-              <span>Hero Architecture • SIH 2026 PS 26100</span>
+              <span>Hero Architecture •    </span>
             </div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">
               Three-Way Evidence Reconciliation
@@ -179,11 +179,10 @@ export const ThreeWayReconciliationTab: React.FC<ThreeWayReconciliationTabProps>
             <button
               key={tab.id}
               onClick={() => setFilterOutcome(tab.id)}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${
-                filterOutcome === tab.id
-                  ? 'bg-slate-900 text-white shadow-2xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-              }`}
+              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${filterOutcome === tab.id
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                }`}
             >
               {tab.label}
             </button>
@@ -208,13 +207,12 @@ export const ThreeWayReconciliationTab: React.FC<ThreeWayReconciliationTabProps>
             return (
               <div
                 key={item.id}
-                className={`bg-white rounded-2xl border transition-all shadow-2xs ${
-                  isConflict
-                    ? 'border-rose-300 ring-1 ring-rose-200/50'
-                    : isWarning
+                className={`bg-white rounded-2xl border transition-all shadow-2xs ${isConflict
+                  ? 'border-rose-300 ring-1 ring-rose-200/50'
+                  : isWarning
                     ? 'border-amber-300 ring-1 ring-amber-200/50'
                     : 'border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 {/* Clause Title & Status Header */}
                 <div
@@ -223,13 +221,12 @@ export const ThreeWayReconciliationTab: React.FC<ThreeWayReconciliationTabProps>
                 >
                   <div className="flex items-start space-x-3">
                     <div
-                      className={`p-2 rounded-xl mt-0.5 ${
-                        isConflict
-                          ? 'bg-rose-50 text-rose-700'
-                          : isWarning
+                      className={`p-2 rounded-xl mt-0.5 ${isConflict
+                        ? 'bg-rose-50 text-rose-700'
+                        : isWarning
                           ? 'bg-amber-50 text-amber-700'
                           : 'bg-slate-100 text-slate-700'
-                      }`}
+                        }`}
                     >
                       <Scale className="w-5 h-5" />
                     </div>
@@ -305,11 +302,10 @@ export const ThreeWayReconciliationTab: React.FC<ThreeWayReconciliationTabProps>
                           2. Extracted Document Evidence
                         </span>
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
-                            item.documentEvidence.hasDocument
-                              ? 'bg-slate-100 text-slate-800 border border-slate-200'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
+                          className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${item.documentEvidence.hasDocument
+                            ? 'bg-slate-100 text-slate-800 border border-slate-200'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}
                         >
                           {item.documentEvidence.hasDocument ? 'SUBMITTED' : 'NOT UPLOADED'}
                         </span>
@@ -389,15 +385,14 @@ export const ThreeWayReconciliationTab: React.FC<ThreeWayReconciliationTabProps>
 
                   {/* Step 4: Reconciled Result Card (Bottom Center) */}
                   <div
-                    className={`p-4 rounded-xl border ${
-                      isConflict
-                        ? 'bg-rose-50/70 border-rose-200 text-rose-950'
-                        : isWarning
+                    className={`p-4 rounded-xl border ${isConflict
+                      ? 'bg-rose-50/70 border-rose-200 text-rose-950'
+                      : isWarning
                         ? 'bg-amber-50/70 border-amber-200 text-amber-950'
                         : isMissing
-                        ? 'bg-slate-100 border-slate-300 text-slate-900'
-                        : 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-                    }`}
+                          ? 'bg-slate-100 border-slate-300 text-slate-900'
+                          : 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                      }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                       <div className="flex items-center space-x-2">

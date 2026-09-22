@@ -11,7 +11,7 @@ import { runPolicyEdgeCasesTests } from './unit/policy-edge-cases.test';
 
 async function main() {
   console.log('====================================================');
-  console.log('  SATYAM MONOREPO AUTOMATED TEST SUITE (SIH 2026 PS 26100)');
+  console.log('  SATYAM MONOREPO AUTOMATED TEST SUITE (   )');
   console.log('====================================================\n');
 
   console.log('--- 1. Compliance Core & Policy Engine Tests ---');

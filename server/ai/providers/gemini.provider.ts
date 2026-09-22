@@ -220,7 +220,7 @@ Return JSON:
           recommendedActions: parsed.recommendedActions || [],
           modelUsed: 'Google Gemini 3.7 Flash (Advisory Decision Support)',
           disclaimerText:
-            'LEGAL MANDATE NOTICE: This AI-generated recommendation is strictly an advisory decision-support artifact under GeM General Terms and Conditions (GTC) and General Financial Rules (GFR 2017). The final qualification or disqualification decision is the sole statutory responsibility of the authorized Procurement Officer. This model does not calculate or alter deterministic compliance scores.',
+            'LEGAL MANDATE NOTICE: This automated advisory recommendation is strictly a decision-support artifact under GeM General Terms and Conditions (GTC) and General Financial Rules (GFR 2017). The final qualification or disqualification decision is the sole statutory responsibility of the authorized Procurement Officer. This service does not calculate or alter deterministic compliance scores.',
           generatedAt: new Date().toISOString(),
         };
       }
@@ -253,14 +253,11 @@ Return JSON:
   public async queryCopilot(query: string, bidContext: Record<string, any>): Promise<string> {
     if (this.aiClient) {
       try {
-        const prompt = `You are the GeM Government Procurement Copilot & GFR 2017 Compliance Specialist.
-Context:
-${JSON.stringify(bidContext, null, 2)}
-
-User Question:
-${query}
-
-Answer concisely with explicit statutory citations (GFR Rule 144, 151, 153, 173 or GeM GTC) and evidence references.`;
+        const prompt = `You are the GeM Government Procurement Advisory Assistant & GFR 2017 Compliance Specialist. You assist procurement officers in analyzing bid compliance, local content thresholds, shortfall procedures, and statutory exemptions. Answer the officer's query factually and concisely based on the following bid context and official GeM GTC guidelines:\n\nBID CONTEXT:\n${JSON.stringify(
+          bidContext,
+          null,
+          2
+        )}\n\nOFFICER QUERY:\n${query}`;
 
         const response = await this.aiClient.models.generateContent({
           model: 'gemini-3.7-flash',

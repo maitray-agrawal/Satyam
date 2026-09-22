@@ -604,7 +604,7 @@ apiRouter.get('/verify/mii', (req: Request, res: Response) => {
   res.json(VerificationSimulators.verifyMii(companyName));
 });
 
-// ---------------- AI COPILOT ----------------
+// ---------------- ADVISORY ASSISTANT ----------------
 apiRouter.post('/ai/copilot', async (req: Request, res: Response) => {
   try {
     const { query, bidContext } = req.body;
@@ -793,4 +793,13 @@ apiRouter.get('/reports/:bidId/executive-summary', async (req: Request, res: Res
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---------------- 404 CATCH-ALL FOR UNMATCHED API ROUTES ----------------
+apiRouter.use((req: Request, res: Response) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `The requested procurement resource could not be located: ${req.method} ${req.originalUrl}`,
+    statusCode: 404,
+  });
 });

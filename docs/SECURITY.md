@@ -37,7 +37,7 @@ RBAC is enforced via Express middleware (`server/modules/auth/auth.middleware.ts
 
 ## 4. Simulated External Sources & Zero-Leakage Policy
 
-- **Sandbox Data Isolation**: In the prototype, all external registry adapters (CBIC/GSTN, CBDT, Udyam, EPFO, ESIC, OEM) operate using simulated government datasets. No real taxpayer records or classified procurement files are accessed or exposed.
+- **Sandbox Data Isolation**: In this demonstration environment, all external registry adapters (CBIC/GSTN, CBDT, Udyam, EPFO, ESIC, OEM) operate using simulated government datasets. No real taxpayer records or classified procurement files are accessed or exposed.
 - **Pino Observability Redaction**: The platform logger (`server/observability/logger.ts`) implements automatic path redaction for sensitive fields:
   ```typescript
   redact: ['password', 'secret', 'apiKey', 'geminiApiKey', '*.password', '*.apiKey', '*.secret']

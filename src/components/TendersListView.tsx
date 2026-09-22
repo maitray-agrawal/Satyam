@@ -250,11 +250,11 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-black text-slate-900 tracking-tight">Tender Catalog & Ruleset Intelligence</h1>
             <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
-              SIH 2026 PS 26100
+
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Deterministic ruleset management with AI-assisted RFP clause extraction and officer approval workflows.
+            Deterministic ruleset management with automated RFP clause extraction and officer approval workflows.
           </p>
         </div>
         <button
@@ -269,11 +269,10 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
 
       {statusMessage && (
         <div
-          className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-            statusMessage.type === 'success'
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-              : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}
+          className={`p-3 rounded-xl border flex items-center justify-between text-xs ${statusMessage.type === 'success'
+            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}
         >
           <span>{statusMessage.text}</span>
           <button onClick={() => setStatusMessage(null)} className="text-slate-400 hover:text-slate-700">
@@ -296,11 +295,10 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
               <div
                 key={t.id}
                 onClick={() => setSelectedTender(t)}
-                className={`p-4 rounded-xl border transition cursor-pointer ${
-                  isSelected
-                    ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-xs'
-                    : 'border-slate-200 bg-white hover:bg-slate-50'
-                }`}
+                className={`p-4 rounded-xl border transition cursor-pointer ${isSelected
+                  ? 'border-emerald-600 bg-white ring-2 ring-emerald-500/20 shadow-xs'
+                  : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
@@ -311,9 +309,8 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
                       v{t.rulesetVersion || 1}
                     </span>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        t.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                      }`}
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${t.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}
                     >
                       {t.status}
                     </span>
@@ -409,7 +406,7 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
                   </div>
 
                   <p className="text-xs text-purple-800 leading-relaxed">
-                    Upload an official RFP tender PDF or paste document clauses. The extraction pipeline parses structured statutory requirements, minimum financial thresholds, and evaluation weights. 
+                    Upload an official RFP tender PDF or paste document clauses. The extraction pipeline parses structured statutory requirements, minimum financial thresholds, and evaluation weights.
                     <strong className="block mt-1 text-purple-950 font-bold">
                       Mandate: AI extracted clauses are placed in candidate DRAFT status and do not affect scoring until approved and published by an officer.
                     </strong>

@@ -1,11 +1,15 @@
 services:
   - type: web
-    name: gev-verify
+    name: satyam
     runtime: docker
     dockerfilePath: ./Dockerfile
+    branch: main
+    healthCheckPath: /api/health
     plan: free
     envVars:
       - key: NODE_ENV
         value: production
       - key: GEMINI_API_KEY
         sync: false
+      - key: JWT_SECRET
+        generateValue: true

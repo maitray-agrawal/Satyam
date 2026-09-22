@@ -1,7 +1,7 @@
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: gev-verify-production
+  name: satyam-production
   annotations:
     run.googleapis.com/ingress: all
 spec:
@@ -16,9 +16,9 @@ spec:
       containerConcurrency: 80
       timeoutSeconds: 300
       containers:
-        - image: gcr.io/gev-verify-production/app:latest
+        - image: gcr.io/satyam-production/app:latest
           ports:
-            - containerPort: 3000
+            - containerPort: 8080
           resources:
             limits:
               cpu: "1000m"
@@ -26,8 +26,6 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
-            - name: PORT
-              value: "3000"
             # Optional: Add GEMINI_API_KEY if live multimodal extraction is desired.
             # If omitted, platform runs with built-in deterministic verification.
             # To link Google Secret Manager:

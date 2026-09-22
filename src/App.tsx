@@ -10,6 +10,7 @@ import { NewBidModal } from './components/NewBidModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { ReportsView } from './components/ReportsView';
 import { EvaluationsOverviewView } from './components/EvaluationsOverviewView';
+import { NotFoundView } from './components/NotFoundView';
 import { Bid, DashboardStats, Tender, User, AuditLog } from './types';
 import { RefreshCw, Scale } from 'lucide-react';
 
@@ -153,7 +154,7 @@ export function App() {
                 currentUser={currentUser}
                 onBack={() => setActiveTab('dashboard')}
                 onRefreshBid={handleRefreshSingleBid}
-                onPrintReport={() => setIsPrintReportOpen(true)}
+                onPrintReport={() => setActiveTab('reports')}
               />
             )}
 
@@ -169,7 +170,7 @@ export function App() {
                     if (bids.length > 0) handleSelectBid(bids[0].id);
                     else setActiveTab('dashboard');
                   }}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition shadow-xs"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition shadow-xs cursor-pointer"
                 >
                   {bids.length > 0 ? 'Open First Bidder Dossier' : 'Go to Dashboard'}
                 </button>
@@ -196,6 +197,8 @@ export function App() {
             {activeTab === 'reports' && (
               <ReportsView
                 bids={bids}
+                selectedBidDetails={selectedBidDetails}
+                selectedBidId={selectedBidDetails?.id}
                 currentUser={currentUser}
                 onSelectBid={handleSelectBid}
                 onOpenPrintModal={(bidToPrint) => {
@@ -210,20 +213,26 @@ export function App() {
             {activeTab === 'audit' && (
               <AuditLedgerView logs={auditLogs} onRefreshLogs={loadData} />
             )}
+
+            {!['dashboard', 'dossier', 'bids', 'tenders', 'evaluations', 'reports', 'apis', 'audit'].includes(activeTab) && (
+              <NotFoundView onBackToDashboard={() => setActiveTab('dashboard')} />
+            )}
           </>
         )}
       </main>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-          <div className="flex items-center space-x-3">
-            <span className="font-bold text-slate-200">SATYAM Platform</span>
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-bold text-slate-200">SATYAM (सत्यम्)</span>
             <span>•</span>
-            <span>Government e-Marketplace (GeM) Statutory Compliance & Decision-Support System</span>
+            <span>Enterprise Bid Compliance Verification & Decision-Support Platform</span>
+            <span>•</span>
+            <span className="text-slate-400">Designed for GeM-oriented evaluation and demonstration</span>
           </div>
-          <div className="text-slate-400 font-mono text-center sm:text-right">
-            <span>GFR 2017 Rule 144 Compliant • Simulated Govt Data</span>
+          <div className="text-slate-400 font-mono text-center sm:text-right whitespace-nowrap">
+            <span>GFR 2017 Rule 144 Compliant • Simulated Govt Registries for Evaluation</span>
           </div>
         </div>
       </footer>

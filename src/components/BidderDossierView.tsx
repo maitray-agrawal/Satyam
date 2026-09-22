@@ -137,7 +137,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
   const [copilotMessages, setCopilotMessages] = useState<Array<{ sender: 'user' | 'assistant'; text: string; time: string }>>([
     {
       sender: 'assistant',
-      text: `Greetings, Officer ${currentUser.name}. I am your GeM Statutory Compliance Decision-Support Copilot. I have analyzed Bid ${bid.bidNumber} submitted by "${bid.bidder?.legalName}". You may ask me about specific GeM GTC clauses, local content thresholds, shortfall procedures, or request a drafted clarification letter.`,
+      text: `Greetings, Officer ${currentUser.name}. I am your GeM Statutory Compliance Decision-Support Assistant. I have analyzed Bid ${bid.bidNumber} submitted by "${bid.bidder?.legalName}". You may ask me about specific GeM GTC clauses, local content thresholds, shortfall procedures, or request a drafted clarification letter.`,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -354,7 +354,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
     } catch (err) {
       const errMsg = {
         sender: 'assistant' as const,
-        text: 'Error contacting AI Copilot. Please try again.',
+        text: 'Error contacting Advisory Assistant. Please try again.',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setCopilotMessages((prev) => [...prev, errMsg]);
@@ -405,10 +405,10 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
           <button
             id="btn-print-tec-report"
             onClick={onPrintReport}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition shadow-xs"
+            className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold transition shadow-xs cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Print TEC Report</span>
+            <span>Compliance Report</span>
           </button>
         </div>
       </div>
@@ -641,7 +641,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-            <span>8. AI Advisory</span>
+            <span>8. Advisory Assistant</span>
           </button>
 
           <button
@@ -2435,7 +2435,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* SUBTAB 5: AI ADVISORY & INTERACTIVE COPILOT */}
+      {/* SUBTAB 5: ADVISORY & DECISION SUPPORT ASSISTANT */}
       {/* ========================================================================= */}
       {activeSubTab === 'ai-copilot' && (
         <div className="space-y-6">
@@ -2596,11 +2596,13 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
             </div>
           </div>
 
-          {/* Interactive AI Copilot for Procurement Officer */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-            <div className="flex items-center space-x-2 mb-4">
-              <MessageSquare className="w-4 h-4 text-emerald-600" />
-              <h3 className="text-sm font-bold text-slate-900">Procurement Officer Contextual Copilot</h3>
+          {/* Interactive Advisory Assistant for Procurement Officer */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                <h3 className="text-sm font-bold text-slate-900">Procurement Advisory Assistant</h3>
+              </div>
             </div>
 
             {/* Chat History Box */}
@@ -2627,7 +2629,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               {copilotLoading && (
                 <div className="flex items-center space-x-2 text-slate-500 text-xs italic">
                   <Sparkles className="w-3.5 h-3.5 animate-spin text-purple-600" />
-                  <span>Generating AI procurement guidance...</span>
+                  <span>Generating procurement advisory guidance...</span>
                 </div>
               )}
             </div>
@@ -2677,7 +2679,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
                 value={copilotQuery}
                 onChange={(e) => setCopilotQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendCopilotQuery()}
-                placeholder="Ask GeM Copilot about compliance clauses, GTC rules, or draft notices..."
+                placeholder="Query procurement compliance clauses, GTC rules, or statutory references..."
                 className="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-1 focus:ring-emerald-500 focus:outline-none"
               />
               <button

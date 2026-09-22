@@ -17,7 +17,7 @@ export interface GovtApiResponse<T = any> {
   message: string;
 }
 
-const DISCLAIMER_TEXT = 'DEMO / SIMULATED GOVERNMENT DATA - FOR VERIFICATION PROTOTYPE ONLY';
+const DISCLAIMER_TEXT = 'SIMULATED GOVERNMENT REGISTRY DATA - FOR EVALUATION AND DEMONSTRATION PURPOSES';
 
 // 1. GST Portal Simulator Database
 const GST_DATABASE: Record<string, any> = {

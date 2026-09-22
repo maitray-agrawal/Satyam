@@ -137,7 +137,7 @@ export function generateDeterministicRecommendation(
     recommendedActions,
     modelUsed: 'SATYAM Deterministic Synthesis Engine (Offline GFR 2017 Grounded)',
     disclaimerText:
-      'LEGAL MANDATE NOTICE: This AI-generated recommendation is strictly an advisory decision-support artifact under GeM General Terms and Conditions (GTC) and General Financial Rules (GFR 2017). The final qualification or disqualification decision is the sole statutory responsibility of the authorized Procurement Officer. This model does not calculate or alter deterministic compliance scores.',
+      'LEGAL MANDATE NOTICE: This automated advisory recommendation is strictly a decision-support artifact under GeM General Terms and Conditions (GTC) and General Financial Rules (GFR 2017). The final qualification or disqualification decision is the sole statutory responsibility of the authorized Procurement Officer. This service does not calculate or alter deterministic compliance scores.',
     generatedAt: new Date().toISOString(),
   };
 }

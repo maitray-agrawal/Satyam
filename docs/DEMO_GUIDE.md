@@ -1,6 +1,6 @@
 # GEV-VERIFY (SATYAM) — Demonstration Guide
 
-This guide outlines a comprehensive **3 to 5 minute live demonstration sequence** designed for Smart India Hackathon (SIH 2026 PS 26100) jury evaluation, technical reviewers, and procurement officers.
+This guide outlines a comprehensive **3 to 5 minute live demonstration sequence** designed for Smart India Hackathon (   ) jury evaluation, technical reviewers, and procurement officers.
 
 ---
 
@@ -22,7 +22,7 @@ Before beginning the walkthrough:
 - **Key Talking Points**:
   - Point out top metrics: Total Active Tenders, Evaluated Bidders, Discrepancies Detected, and High/Critical Risk Flags.
   - Highlight the **SLA Clock** and **Statutory Compliance Badge** indicating alignment with **GFR 2017** and **GeM GTC v4.0**.
-  - Note the clear simulation banner clarifying that external registries are running on simulated sandbox data for the prototype.
+  - Note the clear simulation banner clarifying that external registries are running on simulated sandbox data for this evaluation environment.
 
 ### Step 2: Tender Selection
 - **What to show**: Navigate to **Tender Catalog** or select the default featured tender from the dashboard:

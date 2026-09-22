@@ -1,9 +1,9 @@
 # AI Intelligence Service (Python FastAPI)
 
-This microservice provides high-throughput statutory document parsing, Gemini multimodal field extraction, and citation-grounded evaluation summaries for the SATYAM platform (SIH 2026 PS 26100).
+This microservice provides high-throughput statutory document parsing, multimodal field extraction, and citation-grounded evaluation summaries for the SATYAM platform (   ).
 
 ## Endpoints
-- `GET /health` - Service health and Gemini status
+- `GET /health` - Service health and provider status
 - `POST /api/v1/extract` - Extract structured domain fields from uploaded PDF / image bids
 - `POST /api/v1/advisory` - Formulate structured, audit-grade advisory opinions strictly based on deterministic inputs
 

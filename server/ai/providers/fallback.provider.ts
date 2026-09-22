@@ -17,7 +17,7 @@ import { createServiceLogger } from '../../observability/logger';
 const log = createServiceLogger('DeterministicFallbackProvider');
 
 const STATUTORY_DISCLAIMER =
-  'LEGAL MANDATE NOTICE: This AI-generated recommendation is strictly an advisory decision-support artifact under GeM General Terms and Conditions (GTC) and General Financial Rules (GFR 2017). The final qualification or disqualification decision is the sole statutory responsibility of the authorized Procurement Officer. This model does not calculate or alter deterministic compliance scores.';
+  'LEGAL MANDATE NOTICE: This automated advisory recommendation is strictly a decision-support artifact under GeM General Terms and Conditions (GTC) and General Financial Rules (GFR 2017). The final qualification or disqualification decision is the sole statutory responsibility of the authorized Procurement Officer. This service does not calculate or alter deterministic compliance scores.';
 
 export class DeterministicFallbackProvider implements AIProvider {
   readonly providerName = 'Deterministic Rule-Grounded Provider (Offline / Fallback)';
@@ -121,7 +121,7 @@ export class DeterministicFallbackProvider implements AIProvider {
   public async queryCopilot(query: string, bidContext: Record<string, any>): Promise<string> {
     const q = query.toLowerCase();
     if (q.includes('gst') || q.includes('tax')) {
-      return `[SATYAM Statutory Copilot | GFR 2017 & GeM GTC]
+      return `[SATYAM Advisory Assistant | GFR 2017 & GeM GTC]
 GST Verification Guidance:
 - Under GeM GTC Clause 4.1, all bidders must hold an ACTIVE GSTIN matching the state of delivery or corporate headquarters.
 - Taxpayer status must be 'Regular' (Composition dealers cannot issue tax invoices under Section 31(1) of CGST Act).
@@ -129,7 +129,7 @@ GST Verification Guidance:
     }
 
     if (q.includes('debar') || q.includes('black') || q.includes('order')) {
-      return `[SATYAM Statutory Copilot | GFR Rule 151]
+      return `[SATYAM Advisory Assistant | GFR Rule 151]
 Debarment / Blacklisting Rules:
 - Under Rule 151 of GFR 2017, a procuring entity may debar a bidder from participating in any procurement for up to 3 years for code of integrity breach.
 - Bids from debarred entities must be rejected immediately at technical opening without evaluation of price bids.
@@ -137,7 +137,7 @@ Debarment / Blacklisting Rules:
     }
 
     if (q.includes('mii') || q.includes('local content') || q.includes('make in india')) {
-      return `[SATYAM Statutory Copilot | DPIIT Order 2017]
+      return `[SATYAM Advisory Assistant | DPIIT Order 2017]
 Make in India Procurement Guidelines:
 - Class-I Local Supplier: Local content >= 50% (eligible for purchase preference under GFR Rule 153).
 - Class-II Local Supplier: Local content >= 20% and < 50%.
@@ -145,7 +145,7 @@ Make in India Procurement Guidelines:
 - Bidder Local Content: ${bidContext.bidder?.localContentPercentage ?? 'N/A'}%.`;
     }
 
-    return `[SATYAM Statutory Copilot | Public Procurement Decision Support]
+    return `[SATYAM Advisory Assistant | Public Procurement Decision Support]
 Context Evaluated:
 - Bidder: ${bidContext.bidder?.legalName || 'Selected Bidder'}
 - Deterministic Score: ${bidContext.overallScore ?? 'N/A'}/100
