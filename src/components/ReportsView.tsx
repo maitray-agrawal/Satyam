@@ -75,7 +75,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   }
 
   return (
-<<<<<<< HEAD
     <div className="pb-16 pt-2">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* ========================================================================= */}
@@ -111,26 +110,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 </select>
               </div>
             )}
-=======
-    <div className="space-y-6 pb-16">
-      {/* Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center space-x-3.5">
-          <StateEmblem size={50} alt="State Emblem of India" className="shrink-0 hidden sm:inline-flex" />
-          <div>
-            <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
-              <FileSpreadsheet className="w-4 h-4 text-teal-600" />
-              <span>Statutory Compliance Reporting Engine</span>
-            </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              Technical Evaluation Committee (TEC) Official Reports
-            </h1>
-            <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
-              Generate, inspect, and export formal GFR 2017 Rule 144 compliance verification records for audited GeM tenders.
-            </p>
-          </div>
-        </div>
->>>>>>> origin/satwik-sih-2026-ps26100
 
             <button
               id="btn-print-report"

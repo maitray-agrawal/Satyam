@@ -58,7 +58,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewBid,
 }) => {
   return (
-<<<<<<< HEAD
     <header
       id="satyam-header"
       className="sticky top-0 z-40 transition-colors print:hidden shadow-xs"
@@ -75,9 +74,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Ashoka Emblem Graphic with 'सत्यमेव जयते' */}
               <div className="flex flex-col items-center justify-center flex-shrink-0">
                 <img
-                  src="/assets/emblem.png"
+                  src="/emblem.svg"
                   alt="National Emblem of India"
-                  className="h-12 w-auto flex-shrink-0 object-contain"
+                  className="h-11 w-auto flex-shrink-0 object-contain"
                   style={{ filter: "brightness(0) invert(1)" }}
                 />
               </div>
@@ -97,43 +96,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="h-full w-1/3 bg-[#138808]"></span>
                 </div>
               </div>
-=======
-    <header id="satyam-header" className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 transition-colors">
-      {/* Top Official Sub-Bar: Clean, Authoritative, Subtle */}
-      <div className="bg-slate-900 text-slate-200 text-[11px] font-medium tracking-wide py-1.5 px-4 sm:px-8 flex items-center justify-between border-b border-slate-800">
-        <div className="flex items-center space-x-2.5">
-          <StateEmblem size={22} inverted alt="State Emblem of India" className="shrink-0" />
-          <span className="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-700">
-            GOVERNMENT OF INDIA
-          </span>
-          <span className="hidden sm:inline text-slate-300">
-            GeM Procurement Compliance Intelligence & Decision-Support System
-          </span>
-          <span className="sm:hidden text-slate-300">GeM SATYAM Platform</span>
-        </div>
-        <div className="flex items-center space-x-3 text-slate-400">
-          <span className="hidden md:inline font-mono text-[10px] text-slate-300">
-            GFR 2017 Rule 144 Compliant
-          </span>
-          <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-teal-300 border border-teal-500/30">
-            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
-            <span>Simulated Govt Registries</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Brand & Subtitle */}
-          <div
-            className="flex items-center space-x-3.5 cursor-pointer group select-none"
-            onClick={() => setActiveTab('dashboard')}
-          >
-            <div className="flex items-center space-x-3">
-              <StateEmblem size={44} alt="State Emblem of India" className="transition-transform group-hover:scale-105 shrink-0" />
-              <div className="h-8 w-px bg-slate-200 hidden sm:block" />
->>>>>>> origin/satwik-sih-2026-ps26100
             </div>
 
             {/* Clean Thin Vertical Divider */}

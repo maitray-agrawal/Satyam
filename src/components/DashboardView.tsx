@@ -157,12 +157,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     <div className="space-y-6 pb-12">
       {/* Page Header */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-<<<<<<< HEAD
-        <div>
-          <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
-            <ShieldCheck className="w-4 h-4 text-teal-600" />
-            <span>    • GeM Decision-Support</span>
-=======
         <div className="flex items-start sm:items-center space-x-4">
           <StateEmblem size={56} alt="State Emblem of India" className="shrink-0 hidden sm:inline-flex" />
           <div>
@@ -177,7 +171,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-xs text-slate-500 mt-1.5 max-w-2xl leading-relaxed">
               Automated three-way evidence reconciliation against 13 simulated statutory government registries (GSTN, ITD, Udyam MSME, EPFO, ESIC, DPIIT, Central Debarment).
             </p>
->>>>>>> origin/satwik-sih-2026-ps26100
           </div>
         </div>
 
