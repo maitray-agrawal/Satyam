@@ -1,8 +1,8 @@
-# GEV-VERIFY (SATYAM) Architecture Specification
+# SATYAM Architecture Specification
 
 ## Overview & Design Principles
 
-GEV-VERIFY (SATYAM) is designed as a secure, audit-grade verification and decision-support system for public procurement under the **General Financial Rules (GFR 2017)** and **Government e-Marketplace (GeM) General Terms and Conditions (GTC v4.0)**.
+**SATYAM** is designed as a secure, audit-grade verification and decision-support system for public procurement under the **General Financial Rules (GFR 2017)** and **Government e-Marketplace (GeM) General Terms and Conditions (GTC v4.0)**.
 
 The architecture is built upon four non-negotiable principles:
 

@@ -1,22 +1,16 @@
 /**
- * GEV-VERIFY (SATYAM) Automated Screenshot Capture Utility
+ * SATYAM Automated Screenshot Capture Utility
  *
  * Captures high-resolution, un-fabricated screenshots of the running application
- * across all core screens:
- *   1. 01-dashboard.png
- *   2. 02-bidder-dossier.png
- *   3. 03-document-intelligence.png
- *   4. 04-verification-results.png
- *   5. 05-three-way-reconciliation.png
- *   6. 06-consistency-analysis.png
- *   7. 07-audit-ledger.png
- *
- * Requirements:
- *   1. Application must be running locally (`npm run dev` at http://localhost:3000)
- *   2. Playwright must be installed (`npx playwright install chromium`)
- *
- * Usage:
- *   node scripts/capture-screenshots.mjs
+ * across all 8 required screens for SIH submission review:
+ *   1. 01-command-center.png
+ *   2. 02-tender-requirements.png
+ *   3. 03-bidder-dossier.png
+ *   4. 04-three-way-reconciliation.png
+ *   5. 05-compliance-analysis.png
+ *   6. 06-evidence-provenance.png
+ *   7. 07-officer-decision.png
+ *   8. 08-audit-ledger.png
  */
 
 import fs from 'fs';
@@ -31,7 +25,7 @@ const OUTPUT_DIR = path.resolve(__dirname, '../docs/screenshots');
 
 async function main() {
   console.log('====================================================');
-  console.log('  GEV-VERIFY Screenshot Capture Utility');
+  console.log('  SATYAM SIH-26100 Screenshot Capture Utility');
   console.log('====================================================\n');
 
   if (!fs.existsSync(OUTPUT_DIR)) {
@@ -43,24 +37,17 @@ async function main() {
     const pw = await import('playwright');
     chromium = pw.chromium;
   } catch (err) {
-    console.error('Playwright is not currently installed.');
-    console.log('\nTo install Playwright and capture live screenshots:');
-    console.log('  npm install -D playwright');
-    console.log('  npx playwright install chromium');
-    console.log('  node scripts/capture-screenshots.mjs\n');
+    console.error('Playwright is not installed.');
     process.exit(1);
   }
 
   console.log(`Connecting to running application at: ${BASE_URL}`);
-
   try {
     const healthRes = await fetch(`${BASE_URL}/api/health`);
-    if (!healthRes.ok) throw new Error(`Health check returned status ${healthRes.status}`);
+    if (!healthRes.ok) throw new Error(`Health status ${healthRes.status}`);
     console.log('  PASS: Application server is active.\n');
   } catch (err) {
     console.error(`  ERROR: Could not connect to application at ${BASE_URL}`);
-    console.error('  Please ensure the dev server is running before executing this script:');
-    console.error('    npm run dev\n');
     process.exit(1);
   }
 
@@ -72,80 +59,81 @@ async function main() {
   const page = await context.newPage();
 
   try {
-    // 1. Procurement Dashboard
-    console.log('1. Capturing 01-dashboard.png...');
+    // 1. Command Center / Dashboard
+    console.log('1. Capturing 01-command-center.png...');
     await page.goto(`${BASE_URL}`, { waitUntil: 'networkidle', timeout: 30000 });
     await page.waitForSelector('#satyam-header', { timeout: 10000 });
-    await page.waitForTimeout(2000);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '01-dashboard.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/01-dashboard.png');
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '01-command-center.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/01-command-center.png');
 
-    // 2. Bidder Dossier View
-    console.log('2. Capturing 02-bidder-dossier.png...');
-    const apexBtn = page.getByText('Apex Infotech').first();
-    if ((await apexBtn.count()) > 0) {
-      await apexBtn.click();
-    } else {
-      const firstBidder = page.locator('button:has-text("Inspect Dossier")').first();
-      await firstBidder.click();
-    }
+    // 2. Tender Requirements & Ruleset Intelligence
+    console.log('2. Capturing 02-tender-requirements.png...');
+    const tenderTab = page.locator('#nav-tab-tenders');
+    await tenderTab.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '02-tender-requirements.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/02-tender-requirements.png');
+
+    // 3. Bidder Dossier View (Apex Infotech / Scenario 2)
+    console.log('3. Capturing 03-bidder-dossier.png...');
+    const dashTab = page.locator('#nav-tab-dashboard');
+    await dashTab.click();
+    await page.waitForTimeout(1000);
+    const apexDossierBtn = page.locator('#btn-open-dossier-bid-2');
+    await apexDossierBtn.click();
     await page.waitForSelector('#subtab-overview', { timeout: 10000 });
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '02-bidder-dossier.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/02-bidder-dossier.png');
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '03-bidder-dossier.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/03-bidder-dossier.png');
 
-    // 3. Document Intelligence
-    console.log('3. Capturing 03-document-intelligence.png...');
-    const docSubtab = page.locator('#subtab-documents');
-    await docSubtab.click();
-    await page.waitForTimeout(1000);
-    const reanalyzeBtn = page.getByRole('button', { name: 'Re-analyze Document' });
-    if ((await reanalyzeBtn.count()) > 0) {
-      await reanalyzeBtn.click();
-      await page.waitForTimeout(2000);
-    }
-    await page.evaluate(() => window.scrollBy(0, 380));
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '03-document-intelligence.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/03-document-intelligence.png');
-
-    // Reset scroll
-    await page.evaluate(() => window.scrollTo(0, 0));
-
-    // 4. Verification Results
-    console.log('4. Capturing 04-verification-results.png...');
-    const verifSubtab = page.locator('#subtab-verifications');
-    await verifSubtab.click();
-    await page.waitForTimeout(1500);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '04-verification-results.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/04-verification-results.png');
-
-    // 5. Three-Way Reconciliation
-    console.log('5. Capturing 05-three-way-reconciliation.png...');
+    // 4. Three-Way Reconciliation Matrix
+    console.log('4. Capturing 04-three-way-reconciliation.png...');
     const reconSubtab = page.locator('#subtab-reconciliation');
     await reconSubtab.click();
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '05-three-way-reconciliation.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/05-three-way-reconciliation.png');
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '04-three-way-reconciliation.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/04-three-way-reconciliation.png');
 
-    // 6. Cross-Document Consistency
-    console.log('6. Capturing 06-consistency-analysis.png...');
-    const consistencySubtab = page.locator('#subtab-consistency');
-    await consistencySubtab.click();
+    // 5. Compliance Analysis Report
+    console.log('5. Capturing 05-compliance-analysis.png...');
+    const reportsTab = page.locator('#nav-tab-reports');
+    await reportsTab.click();
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '06-consistency-analysis.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/06-consistency-analysis.png');
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '05-compliance-analysis.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/05-compliance-analysis.png');
 
-    // 7. Audit & Evaluation History
-    console.log('7. Capturing 07-audit-ledger.png...');
+    // 6. Evidence & Provenance
+    console.log('6. Capturing 06-evidence-provenance.png...');
+    await dashTab.click();
+    await page.waitForTimeout(1000);
+    const tvDossierBtn = page.locator('#btn-open-dossier-bid-1');
+    await tvDossierBtn.click();
+    await page.waitForTimeout(1000);
+    const docSubtab = page.locator('#subtab-documents');
+    await docSubtab.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '06-evidence-provenance.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/06-evidence-provenance.png');
+
+    // 7. Officer Review & Decision
+    console.log('7. Capturing 07-officer-decision.png...');
+    const decisionSubtab = page.locator('#subtab-decision');
+    await decisionSubtab.click();
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '07-officer-decision.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/07-officer-decision.png');
+
+    // 8. Cryptographic Audit Ledger
+    console.log('8. Capturing 08-audit-ledger.png...');
     const auditNavBtn = page.locator('#nav-tab-audit');
     await auditNavBtn.click();
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: path.join(OUTPUT_DIR, '07-audit-ledger.png'), fullPage: false });
-    console.log('  ✅ Captured: docs/screenshots/07-audit-ledger.png');
+    await page.screenshot({ path: path.join(OUTPUT_DIR, '08-audit-ledger.png'), fullPage: false });
+    console.log('  ✅ Captured: docs/screenshots/08-audit-ledger.png');
 
     console.log('\n====================================================');
-    console.log('  All 7 REAL screenshots captured successfully!');
+    console.log('  All 8 SIH submission screenshots captured successfully!');
     console.log('====================================================\n');
   } catch (err) {
     console.error('Error during screenshot capture:', err);

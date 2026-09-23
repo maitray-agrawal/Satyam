@@ -1,6 +1,6 @@
-# GEV-VERIFY (SATYAM) — Demonstration Guide
+# SATYAM — Platform Demonstration Guide
 
-This guide outlines a comprehensive **3 to 5 minute live demonstration sequence** designed for Smart India Hackathon (   ) jury evaluation, technical reviewers, and procurement officers.
+This guide outlines a comprehensive **3 to 5 minute live demonstration sequence** designed for Smart India Hackathon (SIH26100) jury evaluation, technical reviewers, and procurement officers.
 
 ---
 
