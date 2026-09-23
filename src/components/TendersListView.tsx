@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StateEmblem } from './StateEmblem';
 import {
   Building2,
   Calendar,
@@ -246,6 +247,7 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+<<<<<<< HEAD
         <div>
           <div className="flex items-center space-x-2">
             <h1 className="text-xl font-black text-slate-900 tracking-tight">Tender Catalog & Ruleset Intelligence</h1>
@@ -256,6 +258,21 @@ Bidder must submit a sworn affidavit on ₹100 stamp paper stating that the firm
           <p className="text-xs text-slate-500 mt-1">
             Deterministic ruleset management with automated RFP clause extraction and officer approval workflows.
           </p>
+=======
+        <div className="flex items-start sm:items-center space-x-3.5">
+          <StateEmblem size={50} alt="State Emblem of India" className="shrink-0 hidden sm:inline-flex" />
+          <div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-black text-slate-900 tracking-tight">Tender Catalog & Ruleset Intelligence</h1>
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
+                SIH 2026 PS 26100
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Deterministic ruleset management with Gemini AI-assisted RFP clause extraction and officer approval workflows.
+            </p>
+          </div>
+>>>>>>> origin/satwik-sih-2026-ps26100
         </div>
         <button
           id="btn-create-tender-top"

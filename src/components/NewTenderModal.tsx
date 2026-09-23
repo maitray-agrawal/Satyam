@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StateEmblem } from './StateEmblem';
 import { X, Plus, Trash2, Building2 } from 'lucide-react';
 import { RequirementCode, TenderRequirement } from '../types';
 
@@ -95,9 +96,12 @@ export const NewTenderModal: React.FC<NewTenderModalProps> = ({ isOpen, onClose,
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-xl border border-slate-200 max-w-3xl w-full p-6 shadow-xl space-y-5 my-8">
         <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Create New GeM Procurement Tender</h2>
-            <p className="text-xs text-slate-500">Define tender parameters and statutory compliance weights.</p>
+          <div className="flex items-center space-x-3">
+            <StateEmblem size={36} alt="State Emblem of India" className="shrink-0" />
+            <div>
+              <h2 className="text-base font-bold text-slate-900">Create New GeM Procurement Tender</h2>
+              <p className="text-xs text-slate-500">Define tender parameters and statutory compliance weights.</p>
+            </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
             <X className="w-5 h-5" />

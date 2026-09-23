@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { StateEmblem } from './StateEmblem';
 import {
   ShieldAlert,
   CheckCircle2,
@@ -416,12 +417,14 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
       {/* Dossier Header Card */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xs relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          {/* Left: Bidder Details */}
-          <div className="space-y-2 max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="bg-slate-100 text-slate-700 text-[10px] font-mono px-2 py-0.5 rounded font-bold border border-slate-300">
-                BID REF: {bid.bidNumber}
-              </span>
+          {/* Left: Bidder Details & Government Emblem */}
+          <div className="flex items-start space-x-4 max-w-3xl">
+            <StateEmblem size={56} alt="Government of India" className="shrink-0 hidden sm:inline-flex mt-1" />
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="bg-slate-100 text-slate-700 text-[10px] font-mono px-2 py-0.5 rounded font-bold border border-slate-300">
+                  BID REF: {bid.bidNumber}
+                </span>
               <span className="bg-blue-50 text-blue-800 text-[10px] font-semibold px-2 py-0.5 rounded border border-blue-200">
                 TENDER: {bid.tender?.tenderId}
               </span>
@@ -484,6 +487,7 @@ export const BidderDossierView: React.FC<BidderDossierViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
 
           {/* Right: Scores & Risk Badge */}
           <div className="flex items-center space-x-4 bg-slate-50 p-4 rounded-xl border border-slate-200">

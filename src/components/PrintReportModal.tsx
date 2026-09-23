@@ -1,5 +1,10 @@
 import React from 'react';
+<<<<<<< HEAD
 import { ArrowLeft, Printer, X } from 'lucide-react';
+=======
+import { StateEmblem } from './StateEmblem';
+import { X, Printer, Shield, CheckCircle, AlertTriangle, Building, FileCheck } from 'lucide-react';
+>>>>>>> origin/satwik-sih-2026-ps26100
 import { Bid, User } from '../types';
 
 interface PrintReportModalProps {
@@ -57,6 +62,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* ========================================================================= */}
         {/* REPORT HEADER                                                            */}
         {/* ========================================================================= */}
@@ -66,6 +72,22 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
               <span className="font-bold text-slate-800">GOVERNMENT OF INDIA</span>
               <span>•</span>
               <span>{bid.tender?.department || 'Ministry of Electronics & Information Technology'}</span>
+=======
+        {/* Printable Official Government Header */}
+        <div className="space-y-6 text-slate-900 text-xs font-serif">
+          <div className="text-center border-b-2 border-slate-900 pb-4">
+            <div className="flex justify-center mb-2">
+              <StateEmblem size={56} alt="State Emblem of India" />
+            </div>
+            <div className="text-xs font-bold uppercase tracking-widest text-slate-600">GOVERNMENT OF INDIA</div>
+            <div className="text-sm font-extrabold uppercase text-slate-800">{bid.tender?.department}</div>
+            <h1 className="text-lg font-black uppercase tracking-tight text-slate-950 mt-1">
+              RECORD OF TECHNICAL COMPLIANCE & ELIGIBILITY VERIFICATION
+            </h1>
+            <div className="text-[11px] font-mono text-slate-600 mt-1">
+              GeM Bid Ref: <span className="font-bold">{bid.bidNumber}</span> | Tender Ref:{' '}
+              <span className="font-bold">{bid.tender?.tenderId}</span>
+>>>>>>> origin/satwik-sih-2026-ps26100
             </div>
             <div className="text-slate-500">
               Bid Ref: <span className="font-semibold text-slate-800">{bid.bidNumber}</span>
