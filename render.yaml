@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: satyam
+    name: satyam-app
     runtime: docker
     dockerfilePath: ./Dockerfile
     branch: main

@@ -9,7 +9,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Multi--Stage%20Verified-blue.svg)](./Dockerfile)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.2-blue.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)](./LICENSE)
-[![Deployment](https://img.shields.io/badge/Deployment-Render%20Web%20Service-informational.svg)](https://satyam-procurement.onrender.com)
+[![Deployment](https://img.shields.io/badge/Deployment-Render%20Web%20Service-informational.svg)](https://satyam-app.onrender.com/)
 
 ---
 
@@ -70,7 +70,7 @@ All figures below are strictly measured from the codebase and test runs:
 
 ## Live Demo
 
-- **Demonstration URL**: [https://satyam-procurement.onrender.com](https://satyam-procurement.onrender.com)
+- **Demonstration URL**: [https://satyam-app.onrender.com/](https://satyam-app.onrender.com/)
 - **Environment**: *Controlled Demonstration Environment*
 - **Default Evaluation Profile**: Director (Procurement & Contracts), Ministry of Electronics & IT (MeitY)
 
