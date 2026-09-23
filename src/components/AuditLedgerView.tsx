@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StateEmblem } from './StateEmblem';
 import { FileText, Search, Filter, Eye, X, Terminal, Clock, ShieldCheck } from 'lucide-react';
 import { AuditLog } from '../types';
 
@@ -28,15 +29,18 @@ export const AuditLedgerView: React.FC<AuditLedgerViewProps> = ({ logs, onRefres
     <div className="space-y-6 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
-        <div>
-          <div className="flex items-center space-x-2 text-emerald-700 text-xs font-bold uppercase mb-1">
-            <ShieldCheck className="w-4 h-4" />
-            <span>Immutable GeM Procurement Ledger</span>
+        <div className="flex items-start sm:items-center space-x-3.5">
+          <StateEmblem size={50} alt="State Emblem of India" className="shrink-0 hidden sm:inline-flex" />
+          <div>
+            <div className="flex items-center space-x-2 text-emerald-700 text-xs font-bold uppercase mb-1">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Immutable GeM Procurement Ledger</span>
+            </div>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Central Procurement Audit Ledger</h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Tamper-evident chronological record of all document uploads, API cross-checks, compliance scoring events, and Officer signed decisions.
+            </p>
           </div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Central Procurement Audit Ledger</h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Tamper-evident chronological record of all document uploads, API cross-checks, compliance scoring events, and Officer signed decisions.
-          </p>
         </div>
         <button
           onClick={onRefreshLogs}

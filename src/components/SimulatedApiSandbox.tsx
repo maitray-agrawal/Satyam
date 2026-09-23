@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StateEmblem } from './StateEmblem';
 import { Database, Search, CheckCircle, AlertTriangle, ShieldAlert, Sparkles, Terminal, Copy, Check } from 'lucide-react';
 
 interface ApiPreset {
@@ -133,18 +134,21 @@ export const SimulatedApiSandbox: React.FC = () => {
   return (
     <div className="space-y-6 pb-16">
       {/* Top Banner */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs">
-        <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
-          <Database className="w-4 h-4 text-teal-600" />
-          <span>Statutory Government Verification Registry Explorer</span>
+      <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs flex items-start sm:items-center space-x-4">
+        <StateEmblem size={50} alt="State Emblem of India" className="shrink-0 hidden sm:inline-flex" />
+        <div>
+          <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
+            <Database className="w-4 h-4 text-teal-600" />
+            <span>Statutory Government Verification Registry Explorer</span>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Interactive Government Registry API Sandbox</h1>
+          <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+            Direct interactive tester for simulated statutory government verification endpoints. 
+            <span className="text-amber-800 font-semibold ml-1">
+              Note: All responses are clearly stamped &quot;DEMO / SIMULATED GOVERNMENT DATA&quot; in strict adherence to GFR audit guidelines.
+            </span>
+          </p>
         </div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Interactive Government Registry API Sandbox</h1>
-        <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
-          Direct interactive tester for simulated statutory government verification endpoints. 
-          <span className="text-amber-800 font-semibold ml-1">
-            Note: All responses are clearly stamped &quot;DEMO / SIMULATED GOVERNMENT DATA&quot; in strict adherence to GFR audit guidelines.
-          </span>
-        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

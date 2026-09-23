@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StateEmblem } from './StateEmblem';
 import {
   Layers,
   History,
@@ -53,17 +54,20 @@ export const EvaluationsOverviewView: React.FC<EvaluationsOverviewViewProps> = (
     <div className="space-y-6 pb-16">
       {/* Header Banner */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
-            <Layers className="w-4 h-4 text-teal-600" />
-            <span>Immutable Evaluation Snapshots</span>
+        <div className="flex items-start sm:items-center space-x-3.5">
+          <StateEmblem size={50} alt="State Emblem of India" className="shrink-0 hidden sm:inline-flex" />
+          <div>
+            <div className="flex items-center space-x-2 text-teal-700 text-xs font-bold uppercase tracking-wider mb-1">
+              <Layers className="w-4 h-4 text-teal-600" />
+              <span>Immutable Evaluation Snapshots</span>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+              Central Evaluation Runs & Version History
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
+              Tamper-evident chronological log of all automated compliance runs across active bids, with ruleset versions and SHA-256 state proofs.
+            </p>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            Central Evaluation Runs & Version History
-          </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-3xl leading-relaxed">
-            Tamper-evident chronological log of all automated compliance runs across active bids, with ruleset versions and SHA-256 state proofs.
-          </p>
         </div>
 
         <button

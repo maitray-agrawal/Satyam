@@ -10,6 +10,7 @@ import { NewBidModal } from './components/NewBidModal';
 import { PrintReportModal } from './components/PrintReportModal';
 import { ReportsView } from './components/ReportsView';
 import { EvaluationsOverviewView } from './components/EvaluationsOverviewView';
+import { StateEmblem } from './components/StateEmblem';
 import { Bid, DashboardStats, Tender, User, AuditLog } from './types';
 import { RefreshCw, Scale } from 'lucide-react';
 
@@ -214,13 +215,21 @@ export function App() {
         )}
       </main>
 
-      {/* Footer */}
+      {/* Footer with State Emblem of India */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px]">
-          <div className="flex items-center space-x-3">
-            <span className="font-bold text-slate-200">SATYAM Platform</span>
-            <span>•</span>
-            <span>Government e-Marketplace (GeM) Statutory Compliance & Decision-Support System</span>
+          <div className="flex items-center space-x-3.5">
+            <StateEmblem size={32} inverted alt="Government of India" className="shrink-0" />
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="font-bold text-slate-200">SATYAM Compliance Platform</span>
+                <span className="text-slate-500">•</span>
+                <span className="text-slate-300">Government e-Marketplace (GeM)</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Government of India • Ministry of Commerce & Industry / MeitY • SIH 2026 PS 26100
+              </p>
+            </div>
           </div>
           <div className="text-slate-400 font-mono text-center sm:text-right">
             <span>GFR 2017 Rule 144 Compliant • Simulated Govt Data</span>

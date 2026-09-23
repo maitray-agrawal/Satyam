@@ -1,4 +1,5 @@
 import React from 'react';
+import { StateEmblem } from './StateEmblem';
 import { X, Printer, Shield, CheckCircle, AlertTriangle, Building, FileCheck } from 'lucide-react';
 import { Bid, User } from '../types';
 
@@ -49,6 +50,9 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
         {/* Printable Official Government Header */}
         <div className="space-y-6 text-slate-900 text-xs font-serif">
           <div className="text-center border-b-2 border-slate-900 pb-4">
+            <div className="flex justify-center mb-2">
+              <StateEmblem size={56} alt="State Emblem of India" />
+            </div>
             <div className="text-xs font-bold uppercase tracking-widest text-slate-600">GOVERNMENT OF INDIA</div>
             <div className="text-sm font-extrabold uppercase text-slate-800">{bid.tender?.department}</div>
             <h1 className="text-lg font-black uppercase tracking-tight text-slate-950 mt-1">

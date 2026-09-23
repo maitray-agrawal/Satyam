@@ -1,4 +1,5 @@
 import React from 'react';
+import { StateEmblem } from './StateEmblem';
 import {
   Shield,
   Building2,
@@ -65,8 +66,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header id="satyam-header" className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40 transition-colors">
       {/* Top Official Sub-Bar: Clean, Authoritative, Subtle */}
-      <div className="bg-slate-900 text-slate-200 text-[11px] font-medium tracking-wide py-1 px-4 sm:px-8 flex items-center justify-between border-b border-slate-800">
-        <div className="flex items-center space-x-2">
+      <div className="bg-slate-900 text-slate-200 text-[11px] font-medium tracking-wide py-1.5 px-4 sm:px-8 flex items-center justify-between border-b border-slate-800">
+        <div className="flex items-center space-x-2.5">
+          <StateEmblem size={22} inverted alt="State Emblem of India" className="shrink-0" />
           <span className="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-700">
             GOVERNMENT OF INDIA
           </span>
@@ -91,11 +93,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Brand & Subtitle */}
           <div
-            className="flex items-center space-x-3 cursor-pointer group select-none"
+            className="flex items-center space-x-3.5 cursor-pointer group select-none"
             onClick={() => setActiveTab('dashboard')}
           >
-            <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center text-white shadow-xs group-hover:bg-slate-800 transition-colors">
-              <Shield className="w-5 h-5 text-teal-400" />
+            <div className="flex items-center space-x-3">
+              <StateEmblem size={44} alt="State Emblem of India" className="transition-transform group-hover:scale-105 shrink-0" />
+              <div className="h-8 w-px bg-slate-200 hidden sm:block" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
